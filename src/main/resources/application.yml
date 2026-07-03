@@ -3,8 +3,6 @@ server:
   servlet:
     context-path: /
 spring:
-  config:
-    import: optional:file:./.env
   application:
     name: pbms
   datasource:
@@ -25,7 +23,17 @@ spring:
     baseline-on-migrate: true
     validate-on-migrate: false
     locations: classpath:db/migration
-
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: hoanghht00@gmail.com
+    password: xeum rfvu woom agzw
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
 
 jwt:
   secret: ${JWT_SECRET:404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}
@@ -38,6 +46,3 @@ google:
 cors:
   allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:3001}
 
-iot:
-  api:
-    key: PBMS-HARDWARE-SECURE-KEY-2024

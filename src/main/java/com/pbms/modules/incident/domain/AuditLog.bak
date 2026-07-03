@@ -1,0 +1,35 @@
+package com.pbms.modules.incident.domain;
+
+import com.pbms.common.domain.BaseEntity;
+import com.pbms.modules.identity.domain.User;
+import jakarta.persistence.*;
+import lombok.*;
+
+@Entity
+@Table(name = "audit_logs")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class AuditLog extends BaseEntity {
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "actor_id")
+    private User actor;
+
+    @Column(name = "action_type", nullable = false, length = 50)
+    private String actionType; // CREATE, UPDATE, DELETE, OVERRIDE
+
+    @Column(name = "target_entity", nullable = false, length = 50)
+    private String targetEntity;
+
+    @Column(name = "target_id", nullable = false)
+    private Long targetId;
+
+    @Column(name = "old_value", columnDefinition = "VARCHAR(MAX)")
+    private String oldValue;
+
+    @Column(name = "new_value", columnDefinition = "VARCHAR(MAX)")
+    private String newValue;
+}

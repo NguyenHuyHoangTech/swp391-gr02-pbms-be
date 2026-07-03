@@ -1,1 +1,17 @@
-// TO BE IMPLEMENTED BY MEMBER 2 (SPATIAL & ROUTING MASTER)
+package com.pbms.modules.infrastructure.dto.config;
+
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class SlotConfigDTO {
+    private Long id;
+    private String name;
+    private String status;
+    private String plate;
+}
