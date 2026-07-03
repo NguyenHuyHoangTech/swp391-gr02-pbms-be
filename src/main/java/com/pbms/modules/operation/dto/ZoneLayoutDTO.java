@@ -1,1 +1,11 @@
-// TO BE IMPLEMENTED BY MEMBER 2 (SPATIAL & ROUTING MASTER)
+package com.pbms.modules.operation.dto;
+
+import lombok.Data;
+
+@Data
+public class ZoneLayoutDTO {
+    private Double layoutX;
+    private Double layoutY;
+    private Double rotation;
+}
+

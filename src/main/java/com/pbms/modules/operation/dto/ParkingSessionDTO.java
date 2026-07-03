@@ -1,1 +1,11 @@
-// TO BE IMPLEMENTED BY MEMBER 4 (GATE OPERATIONS & EXCEPTION HANDLER)
+package com.pbms.modules.operation.dto;
+
+import lombok.Data;
+
+@Data
+public class ParkingSessionDTO {
+    private String plateNumber;
+    private Long gateId;
+    private String rfidCardCode;
+}
+

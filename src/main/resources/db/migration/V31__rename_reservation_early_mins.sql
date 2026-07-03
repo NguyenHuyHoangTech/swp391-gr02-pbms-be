@@ -1,3 +1,0 @@
-UPDATE dbo.system_configs
-SET config_key = 'RESERVATION_EARLY_MINS'
-WHERE config_key = 'RESERVATION_EARLY_ARRIVAL_WINDOW_MINUTES';

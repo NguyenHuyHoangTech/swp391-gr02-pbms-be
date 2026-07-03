@@ -1,0 +1,90 @@
+package com.pbms.modules.identity.service;
+
+import com.pbms.common.security.JwtProvider;
+import com.pbms.modules.identity.dto.AuthRequest;
+import com.pbms.modules.identity.dto.AuthResponse;
+import com.pbms.modules.identity.entity.User;
+import com.pbms.modules.identity.repository.UserRepository;
+import org.springframework.mail.MailException;
+import org.springframework.mail.SimpleMailMessage;
+import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
+import org.springframework.http.HttpStatus;
+
+import java.time.LocalDateTime;
+import java.util.Random;
+
+@Service
+public class AuthService {
+
+    private final UserRepository userRepository;
+    private final JwtProvider jwtProvider;
+    private final JavaMailSender javaMailSender;
+    private final PasswordEncoder passwordEncoder;
+
+    public AuthService(UserRepository userRepository, JwtProvider jwtProvider, JavaMailSender javaMailSender, PasswordEncoder passwordEncoder) {
+        this.userRepository = userRepository;
+        this.jwtProvider = jwtProvider;
+        this.javaMailSender = javaMailSender;
+        this.passwordEncoder = passwordEncoder;
+    }
+
+    @Transactional
+    public void register(AuthRequest.Register request) {
+        if (!request.getPassword().equals(request.getConfirmPassword())) {
+            throw new IllegalArgumentException("Passwords do not match");
+        }
+        
+        if (userRepository.findByEmail(request.getEmail()).isPresent()) {
+            throw new IllegalArgumentException("Email is already registered");
+        }
+
+        User newUser = User.builder()
+                .email(request.getEmail())
+                .password(passwordEncoder.encode(request.getPassword()))
+                .role("ROLE_CUSTOMER")
+                .isVerified(true) // Automatically verified since OTP is removed
+                .build();
+        userRepository.save(newUser);
+    }
+
+    @Transactional(readOnly = true)
+    public AuthResponse login(AuthRequest.Login request) {
+        User user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new IllegalArgumentException("Invalid email or password"));
+
+        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+            throw new IllegalArgumentException("Invalid email or password");
+        }
+
+        if (user.getIsVerified() == null || !user.getIsVerified()) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "ACCOUNT_UNVERIFIED");
+        }
+
+        if (user.getIsActive() != null && !user.getIsActive()) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "ACCOUNT_INACTIVE");
+        }
+
+        String token = jwtProvider.generateToken(user.getEmail(), user.getRole());
+
+        return AuthResponse.builder()
+                .token(token)
+                .email(user.getEmail())
+                .role(user.getRole())
+                .build();
+    }
+
+
+
+    @Transactional
+    public void resetPassword(String email, AuthRequest.ResetPassword request) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+        
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        userRepository.save(user);
+    }
+}
