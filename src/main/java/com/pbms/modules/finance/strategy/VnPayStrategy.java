@@ -3,23 +3,23 @@ package com.pbms.modules.finance.strategy;
 import org.springframework.stereotype.Component;
 
 @Component
-public class PayOsStrategy implements PaymentStrategy {
+public class VnPayStrategy implements PaymentStrategy {
 
     @Override
     public String generatePaymentUrl(double amount, String orderId) {
-        // TODO: Call PayOS API to get checkout URL
-        return "https://pay.payos.vn/web/...";
+        // TODO: Implement VNPay URL generation logic (VNPAY_TmnCode, HashSecret, etc.)
+        return "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html?...";
     }
 
     @Override
     public boolean verifyWebhookSignature(String payload, String signature) {
-        // TODO: Check PayOS checksum
+        // TODO: Implement VNPay HMAC SHA512 check
         return true;
     }
 
     @Override
     public String getProviderCode() {
-        return "PAYOS";
+        return "VNPAY";
     }
 }
 
