@@ -1,13 +1,12 @@
 /**
- * @Author: Member 2
+ * @Author: Nguyen Huu Thanh
  * @Date: 2026-07-05
- * @Description: Service managing parking zones.
- * Handles calculation of available slots and retrieval of zone details.
- * @Dependencies: 
- * - ZoneRepository (Local)
- * - SlotRepository (Local)
- * - ReservationRepository (Local)
- * - SystemConfigService (Local)
+ * @Description: Service for managing Zone operations including fetching zone data for maps with soft-delete filtering.
+ * @Dependencies:
+ * - ZoneRepository (com.pbms.modules.infrastructure.repository.ZoneRepository)
+ * - SlotRepository (com.pbms.modules.infrastructure.repository.SlotRepository)
+ * - ReservationRepository (com.pbms.modules.operation.repository.ReservationRepository)
+ * - SystemConfigService (com.pbms.modules.system.service.SystemConfigService)
  */
 package com.pbms.modules.infrastructure.service;
 
@@ -36,9 +35,9 @@ public class ZoneService {
 
     /**
      * @Function: getMapZones
-     * @Description: Retrieves all zones with their slots and calculates available slots based on pending reservations.
+     * @Description: Retrieves all zones with their slots and calculates available slots based on physical capacity and pending reservations.
      * @Logic_Steps:
-     * 1. Retrieve all zones from ZoneRepository.
+     * 1. Retrieve all zones from ZoneRepository, filtering out those with 'DELETED' status.
      * 2. Loop through each zone:
      *    2.1. Retrieve all slots for the zone.
      *    2.2. Calculate total slots and physically available slots ("EMPTY" or "AVAILABLE").
@@ -52,13 +51,16 @@ public class ZoneService {
      * @returns {List<ZoneDTO>} List of mapped zone DTOs with calculated availability
      */
     public List<ZoneDTO> getMapZones() {
-        List<Zone> zones = zoneRepository.findAll();
+        List<Zone> zones = zoneRepository.findAll().stream()
+                .filter(z -> !"DELETED".equals(z.getStatus()))
+                .collect(Collectors.toList());
         
         return zones.stream().map(zone -> {
             List<Slot> slots = slotRepository.findByZoneId(zone.getId());
             long totalSlots = slots.size();
             long physicalAvailableSlots = slots.stream().filter(s -> "EMPTY".equals(s.getStatus()) || "AVAILABLE".equals(s.getStatus())).count();
             
+            // Subtract pending virtual reservations that are in the arrival window
             int windowMinutes = 30;
             try { 
                 String configVal = systemConfigService.getConfigByKey("RESERVATION_EARLY_MINS").getConfigValue();
@@ -77,7 +79,7 @@ public class ZoneService {
             long availableSlots = physicalAvailableSlots - pendingReservations;
 
             List<SlotDTO> slotDTOs = slots.stream().map(s -> SlotDTO.builder()
-                .id(String.valueOf(s.getId()))
+                .id(String.valueOf(s.getId())) // FE expects string
                 .name(s.getSlotName())
                 .status(s.getStatus())
                 .build()
@@ -96,6 +98,7 @@ public class ZoneService {
                 .vehicleMatrixWidth(zone.getVehicleType().getMatrixWidth())
                 .vehicleMatrixHeight(zone.getVehicleType().getMatrixHeight())
                 .functionType(zone.getFunctionType())
+                .status(zone.getStatus())
                 .layoutX(zone.getLayoutX())
                 .layoutY(zone.getLayoutY())
                 .rotation(zone.getRotation())
