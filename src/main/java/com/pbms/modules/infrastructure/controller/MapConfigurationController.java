@@ -47,4 +47,15 @@ public class MapConfigurationController {
      * 2. Call MapConfigurationService to persist the updates into the database.
      * 3. Handle exceptions gracefully if parsing or business rules fail.
      */
+    @PostMapping("/save")
+    @LogAudit(action = "UPDATE", resource = "MapConfiguration", description = "Update space map configuration")
+    public ResponseEntity<ApiResponse<String>> saveMapConfig(@RequestBody MapConfigDTO mapConfigDTO) {
+        try {
+            mapConfigurationService.saveMapConfiguration(mapConfigDTO);
+            return ResponseEntity.ok(ApiResponse.success("Successfully updated map configuration", "Success"));
+        } catch (Exception e) {
+            log.error("Failed to update map configuration", e);
+            return ResponseEntity.badRequest().body(ApiResponse.error(400, e.getMessage()));
+        }
+    }
 }
