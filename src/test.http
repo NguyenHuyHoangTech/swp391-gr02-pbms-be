@@ -1,0 +1,49 @@
+
+
+
+### 1. TEST TASK 77: INFRASTRUCTURE (RFID CARDS)
+
+# API Import danh sách thẻ từ file CSV
+# Lưu ý: Postman/Swagger dễ test upload file hơn,
+# nhưng đây là cách gọi HTTP cơ bản.
+POST http://localhost:8080/api/v1/infrastructure/cards/import
+Content-Type: multipart/form-data; boundary=boundary
+
+--boundary
+Content-Disposition: form-data; name="file"; filename="cards.csv"
+Content-Type: text/csv
+
+< ./cards.csv
+--boundary--
+
+### Lấy danh sách tất cả thẻ
+GET http://localhost:8080/api/v1/infrastructure/cards
+Accept: application/json
+
+### Cập nhật trạng thái thẻ (Ví dụ: Khóa thẻ UID 123)
+PUT http://localhost:8080/api/v1/infrastructure/cards/123/status
+Content-Type: application/json
+
+{
+  "status": "INACTIVE"
+}
+
+
+### 2. TEST TASK 76: FINANCE (PAYMENT)
+
+### Tạo đơn thanh toán (Ví dụ: Thanh toán PayPal)
+POST http://localhost:8080/api/v1/finance/payments
+Content-Type: application/json
+
+{
+  "amount": 50000,
+  "providerCode": "PAYPAL"
+}
+
+### Kiểm tra đơn hàng thanh toán (Nếu có API capture)
+GET http://localhost:8080/api/v1/finance/payments/capture?token=abc-xyz-token-test
+Accept: application/json
+
+### Xem doanh thu tổng (Revenue Dashboard)
+GET http://localhost:8080/api/v1/finance/revenue/daily
+Accept: application/json
