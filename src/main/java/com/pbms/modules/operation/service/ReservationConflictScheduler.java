@@ -1,6 +1,6 @@
 /**
  * @Author: Thái Tân Phú
- * @Date: 2026-07-03
+ * @Date: 2026-07-09
  * @Description: Scheduled service that runs every minute to detect zone capacity
  *               conflicts for upcoming PENDING reservations. Notifies staff via
  *               WebSocket when a zone is full before a customer's arrival.
@@ -11,6 +11,8 @@
  */
 package com.pbms.modules.operation.service;
 
+import com.pbms.modules.finance.domain.Transaction;
+import com.pbms.modules.finance.repository.TransactionRepository;
 import com.pbms.modules.operation.domain.Reservation;
 import com.pbms.modules.operation.dto.ZoneRoutingStatusDTO;
 import com.pbms.modules.operation.repository.ReservationRepository;
@@ -21,6 +23,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -36,24 +39,31 @@ public class ReservationConflictScheduler {
     @Autowired
     private ZoneRoutingService zoneRoutingService;
 
+    @Autowired
+    private TransactionRepository transactionRepository;
+
     @Autowired(required = false)
     private SimpMessagingTemplate messagingTemplate;
 
     /**
-     * In-memory map lưu trạng thái đã xử lý của từng reservation.
-     * Key: reservationId | Value: "CONFLICT" hoặc "RESERVED"
-     * Tránh gửi WebSocket trùng lặp mỗi phút.
+     * In-memory map to store the processed status of each reservation.
+     * Key: reservationId | Value: "CONFLICT" or "RESERVED"
+     * This prevents duplicate WebSocket notifications every minute.
      */
     private final Map<Long, String> notifiedReservations = new ConcurrentHashMap<>();
-
-    // -------------------------------------------------------------------------
-    // SCHEDULED JOBS
-    // -------------------------------------------------------------------------
 
     /**
      * @Function: detectZoneConflicts
      * @Description: Runs every minute. Checks upcoming PENDING reservations within
      *               the time window and notifies staff if their target zone is full.
+     * @Logic_Steps:
+     * 1. Define checking window: current time to 30 minutes in the future.
+     * 2. Query PENDING reservations expected to arrive within this window.
+     * 3. Loop through each reservation:
+     *    3.1. Fetch routing status for the zone to check available slots.
+     *    3.2. If available slots <= 0 and not notified yet, send CONFLICT alert to staff.
+     *    3.3. If slots are available and not reserved yet, send RESERVED notification.
+     * @returns void
      */
     @Transactional
     @Scheduled(cron = "0 * * * * *")
@@ -62,7 +72,6 @@ public class ReservationConflictScheduler {
             LocalDateTime now = LocalDateTime.now();
             LocalDateTime windowEnd = now.plusMinutes(30);
 
-            // Tìm các xe sắp vào trong 30 phút tới
             List<Reservation> upcoming = reservationRepository
                     .findUpcomingReservations("PENDING", now, windowEnd);
 
@@ -70,11 +79,9 @@ public class ReservationConflictScheduler {
                 Long zoneId = r.getZone().getId();
                 Long vehicleTypeId = r.getVehicle().getVehicleType().getId();
 
-                // Lấy danh sách chỗ trống từ Member 2 (Routing Service)
                 List<ZoneRoutingStatusDTO> statuses = zoneRoutingService
                         .getRoutingStatus(vehicleTypeId, "BOOK", r.getZone().getId());
 
-                // Kiểm tra xem Zone đó có đang đầy (available <= 0) không?
                 boolean isFull = statuses.stream()
                         .filter(s -> s.getZoneId().equals(zoneId))
                         .findFirst()
@@ -121,6 +128,13 @@ public class ReservationConflictScheduler {
      * @Function: expireUnusedReservations
      * @Description: Runs every minute. Marks PENDING reservations as COMPLETED_UNUSED
      *               if their expectedEntryTime + duration has already passed.
+     * @Logic_Steps:
+     * 1. Query all PENDING reservations.
+     * 2. Loop through reservations:
+     *    2.1. Calculate the expire time (expectedEntryTime + expectedDurationMinutes).
+     *    2.2. If current time is past the expire time, update status to COMPLETED_UNUSED.
+     *    2.3. If reservation had a fee, record it as a penalty transaction (revenue).
+     * @returns void
      */
     @Transactional
     @Scheduled(cron = "0 * * * * *")
@@ -135,11 +149,25 @@ public class ReservationConflictScheduler {
 
                 LocalDateTime expireTime = r.getExpectedEntryTime().plusMinutes(duration);
 
-                // Nếu thời điểm hiện tại đã vượt qua hạn chót -> Hủy bỏ (No-Show)
                 if (now.isAfter(expireTime)) {
                     log.info("Reservation {} expired without arrival, marking COMPLETED_UNUSED", r.getId());
                     r.setStatus("COMPLETED_UNUSED");
                     reservationRepository.save(r);
+
+                    BigDecimal penaltyFee = r.getReservationFee() != null ? r.getReservationFee() : BigDecimal.ZERO;
+                    if (penaltyFee.compareTo(BigDecimal.ZERO) > 0) {
+                        Transaction penaltyTx = Transaction.builder()
+                                .amount(penaltyFee)
+                                .paymentMethod("GATEWAY")
+                                .status("SUCCESS")
+                                .transactionReference("PENALTY-RES-" + r.getId())
+                                .build();
+
+                        penaltyTx.setCreatedAt(now);
+                        penaltyTx = transactionRepository.save(penaltyTx);
+
+                        transactionRepository.updateCreatedAtNative(penaltyTx.getId(), now);
+                    }
                 }
             }
         } catch (Exception e) {
@@ -147,14 +175,16 @@ public class ReservationConflictScheduler {
         }
     }
 
-    // -------------------------------------------------------------------------
-    // PUBLIC METHODS (gọi từ Controller)
-    // -------------------------------------------------------------------------
-
     /**
      * @Function: attemptResolveConflict
-     * @Description: Dành cho lúc Staff nhận được thông báo lỗi đỏ,
-     *               họ xử lý dọn dẹp Zone xong rồi bấm nút "Resolve" trên FE.
+     * @Description: Called when staff manually resolves a conflict from the UI.
+     * @Logic_Steps:
+     * 1. Verify reservation exists and is PENDING.
+     * 2. Re-check the routing status for the zone to ensure it is not full.
+     * 3. If still full, throw exception.
+     * 4. If available, update notification state to RESERVED and broadcast success.
+     * @param reservationId - ID of the reservation
+     * @returns void
      */
     @Transactional
     public void attemptResolveConflict(Long reservationId) {
@@ -168,7 +198,6 @@ public class ReservationConflictScheduler {
         Long zoneId = r.getZone().getId();
         Long vehicleTypeId = r.getVehicle().getVehicleType().getId();
 
-        // Check lại xem Zone đã trống thật chưa
         boolean isFull = zoneRoutingService.getRoutingStatus(vehicleTypeId, "BOOK", r.getZone().getId())
                 .stream()
                 .filter(s -> s.getZoneId().equals(zoneId))
@@ -180,7 +209,6 @@ public class ReservationConflictScheduler {
             throw new IllegalStateException("Zone is still full!");
         }
 
-        // Đã trống -> Resolve thành công
         notifiedReservations.put(r.getId(), "RESERVED");
 
         if (messagingTemplate != null) {

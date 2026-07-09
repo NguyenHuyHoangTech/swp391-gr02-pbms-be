@@ -1,24 +1,16 @@
 /**
  * @Author: Thái Tân Phú
- * @Date: 2026-07-03
- * @Description: JPA Entity mapping to the [reservations] table.
- *               Represents a customer's pre-booking request for a parking slot.
- *               Lifecycle: PENDING -> ACTIVE (on check-in) -> COMPLETED (on check-out)
- *                       or PENDING -> CANCELLED (by customer or scheduler)
- *                       or PENDING -> NO_SHOW (expired without check-in)
- * @Dependencies:
- *  - Vehicle   (com.pbms.modules.operation.domain)    - the vehicle being reserved
- *  - Zone      (com.pbms.modules.infrastructure.domain) - target parking zone
- *  - Slot      (com.pbms.modules.infrastructure.domain) - assigned slot (nullable until resolved)
- *  - User      (com.pbms.modules.identity.domain)     - manager who processed refund
- *  - BaseEntity (com.pbms.common.domain)              - provides id, createdAt, updatedAt
+ * @Date: 2026-07-09
+ * @Description: Entity representing a Prebooking Reservation in the system.
+ * @Dependencies: 
+ * - Vehicle (Local)
+ * - Zone (Local)
+ * - User (Local)
  */
 package com.pbms.modules.operation.domain;
 
 import com.pbms.common.domain.BaseEntity;
 import com.pbms.modules.identity.domain.User;
-import com.pbms.modules.infrastructure.domain.Zone;
-import com.pbms.modules.infrastructure.domain.Slot;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -27,7 +19,8 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "reservations")
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -39,11 +32,7 @@ public class Reservation extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "zone_id")
-    private Zone zone;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "slot_id")
-    private Slot slot;
+    private com.pbms.modules.infrastructure.domain.Zone zone;
 
     @Column(name = "expected_entry_time", nullable = false)
     private LocalDateTime expectedEntryTime;
@@ -53,11 +42,11 @@ public class Reservation extends BaseEntity {
 
     /**
      * Reservation lifecycle status.
-     * PENDING    : Created, awaiting slot assignment or check-in
-     * ACTIVE     : Customer has checked in
-     * COMPLETED  : Customer has checked out
-     * CANCELLED  : Cancelled by customer or auto-scheduler
-     * NO_SHOW    : Expired without check-in
+     * PENDING: Waiting for the vehicle to arrive.
+     * ACTIVE: Vehicle has entered the parking lot.
+     * COMPLETED: Vehicle has exited and session is finished.
+     * CANCELLED: Customer manually cancelled the reservation.
+     * COMPLETED_UNUSED (NO_SHOW): Customer did not arrive within the expected timeframe.
      */
     @Column(nullable = false, length = 50)
     private String status;
@@ -65,18 +54,10 @@ public class Reservation extends BaseEntity {
     @Column(name = "reservation_fee", nullable = false, precision = 18, scale = 2)
     private BigDecimal reservationFee;
 
-    @Column(name = "qr_code", unique = true)
-    private String qrCode;
 
     @Column(name = "notified_early_arrival")
     private Boolean notifiedEarlyArrival;
 
-    /**
-     * Refund lifecycle status.
-     * REQUESTED : Customer submitted refund request
-     * APPROVED  : Manager approved, refund is pending transfer
-     * REJECTED  : Manager rejected with reason
-     */
     @Column(name = "refund_status", length = 50)
     private String refundStatus;
 
@@ -93,3 +74,4 @@ public class Reservation extends BaseEntity {
     @Column(name = "refund_reject_reason", columnDefinition = "VARCHAR(MAX)")
     private String refundRejectReason;
 }
+

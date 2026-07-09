@@ -1,8 +1,7 @@
 /**
  * @Author: Thái Tân Phú
- * @Date: 2026-07-03
- * @Description: Response DTO representing reservation details.
- *               Used to transfer reservation data back to the client.
+ * @Date: 2026-07-09
+ * @Description: Data Transfer Object (DTO) for Reservation entity. Used to send reservation details to the client.
  * @Dependencies: None
  */
 package com.pbms.modules.operation.dto;
@@ -22,28 +21,29 @@ public class ReservationDTO {
     private String vehicleType;
     private String zoneName;
     private String slotName;
-
+    
     @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
     private LocalDateTime expectedEntryTime;
-
+    
     private Integer expectedDurationMinutes;
-
+    
     /**
      * Reservation lifecycle status.
-     * PENDING    : Created, awaiting slot assignment or check-in
-     * ACTIVE     : Customer has checked in
-     * COMPLETED  : Customer has checked out
-     * CANCELLED  : Cancelled by customer or auto-scheduler
+     * Indicates the current state of the reservation.
      */
     private String status;
     private BigDecimal reservationFee;
-    private String qrCode;
-
+    
+    private String actualIn;
+    private String actualOut;
+    private BigDecimal penaltyFee;
+    private String userEmail;
+    
     private BigDecimal refundAmount;
     private String refundStatus;
     private String refundProofUrl;
     private String refundRejectReason;
-
+    
     @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
     private LocalDateTime createdAt;
 }
