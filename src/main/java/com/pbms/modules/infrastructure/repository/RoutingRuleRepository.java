@@ -16,5 +16,8 @@ import java.util.List;
 
 @Repository
 public interface RoutingRuleRepository extends JpaRepository<RoutingRule, Long> {
+    // TODO(TH): unused - RoutingRuleService and ZoneRoutingService both filter
+    // active rules manually via findAll() + stream() instead of calling this.
+    // Confirm intended caller before removing.
     List<RoutingRule> findAllByZoneIdAndIsActiveTrue(Long zoneId);
 }
