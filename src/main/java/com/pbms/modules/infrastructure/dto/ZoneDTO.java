@@ -25,6 +25,7 @@ public class ZoneDTO {
     private Integer vehicleMatrixWidth;
     private Integer vehicleMatrixHeight;
     private String functionType;
+    private String status;
     private Double layoutX;
     private Double layoutY;
     private Integer rotation;

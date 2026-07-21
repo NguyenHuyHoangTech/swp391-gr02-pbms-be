@@ -16,4 +16,5 @@ import java.util.List;
 @Repository
 public interface GateRepository extends JpaRepository<Gate, Long> {
     List<Gate> findByFloorId(Long floorId);
+    List<Gate> findByGateType(String gateType);
 }

@@ -75,8 +75,12 @@ public class ZoneService {
                 return !nowTime.isBefore(startWindow) && !nowTime.isAfter(endWindow);
             }).count();
 
-            long pendingReservations = Math.min(physicalAvailableSlots, countInWindow);
-            long availableSlots = physicalAvailableSlots - pendingReservations;
+            // Không giới hạn pendingReservations theo chỗ trống vật lý - cố ý
+            // đếm cả xe đã đặt trước như "nhu cầu" để đẩy khách vãng lai
+            // tránh xa, giữ chỗ cho xe sắp tới. availableSlots vẫn phải
+            // clamp về 0 vì đây là số hiển thị cho khách, không thể âm.
+            long pendingReservations = countInWindow;
+            long availableSlots = Math.max(0, physicalAvailableSlots - pendingReservations);
 
             List<SlotDTO> slotDTOs = slots.stream().map(s -> SlotDTO.builder()
                 .id(String.valueOf(s.getId())) // FE expects string

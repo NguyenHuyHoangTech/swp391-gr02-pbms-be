@@ -28,6 +28,9 @@ public class RoutingRuleService {
     private final RoutingRuleRepository routingRuleRepository;
     private final ZoneRepository zoneRepository;
 
+    private final com.fasterxml.jackson.databind.ObjectMapper objectMapper = new com.fasterxml.jackson.databind.ObjectMapper()
+            .registerModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule());
+
     /**
      * @Function: getRoutingRulesByVehicleTypeAndFloor
      * @Description: Trả về danh sách chuỗi điều hướng (theo từng khung giờ) đang cấu hình cho 1 loại xe trên 1 tầng, để manager xem lại trên màn hình Routing.
@@ -178,6 +181,44 @@ public class RoutingRuleService {
                           && r.getZone().getVehicleType().getTypeName().equalsIgnoreCase(request.getVehicleTypeName())
                           && (request.getFloorId() == null || r.getZone().getFloor().getId().equals(request.getFloorId())))
                 .collect(Collectors.toList());
+
+        // Ghi lại giá trị CŨ (trước khi ghi đè) vào AuditContext - đọc lại
+        // cấu hình hiện tại rồi quy về đúng shape BatchUpdateRequest (giống
+        // payload FE gửi lên) trước khi serialize.
+        try {
+            com.pbms.common.context.AuditContext context = com.pbms.common.context.AuditContextHolder.getContext();
+            if (context != null) {
+                List<RoutingRuleDTO> oldDtos = getRoutingRulesByVehicleTypeAndFloor(request.getVehicleTypeName(), request.getFloorId());
+
+                RoutingRuleDTO.BatchUpdateRequest oldRequestFormat = new RoutingRuleDTO.BatchUpdateRequest();
+                oldRequestFormat.setVehicleTypeName(request.getVehicleTypeName());
+                oldRequestFormat.setFloorId(request.getFloorId());
+
+                List<RoutingRuleDTO.TimeFrameConfig> oldTimeFrames = new ArrayList<>();
+                for (RoutingRuleDTO dto : oldDtos) {
+                    RoutingRuleDTO.TimeFrameConfig tf = new RoutingRuleDTO.TimeFrameConfig();
+                    tf.setStartTime(dto.getStartTime());
+                    tf.setEndTime(dto.getEndTime());
+                    tf.setIsDefault(dto.getIsDefault());
+
+                    List<RoutingRuleDTO.RuleItem> oldRules = new ArrayList<>();
+                    if (dto.getRules() != null) {
+                        for (RoutingRuleDTO.RuleItemDTO rDto : dto.getRules()) {
+                            RoutingRuleDTO.RuleItem item = new RoutingRuleDTO.RuleItem();
+                            item.setZoneId(rDto.getZoneId());
+                            item.setFillThresholdPct(rDto.getFillThresholdPct());
+                            oldRules.add(item);
+                        }
+                    }
+                    tf.setRules(oldRules);
+                    oldTimeFrames.add(tf);
+                }
+                oldRequestFormat.setTimeFrames(oldTimeFrames);
+
+                context.setOldValue(objectMapper.writeValueAsString(oldRequestFormat));
+            }
+        } catch (Exception e) {
+        }
         activeRules.forEach(r -> r.setIsActive(false));
         routingRuleRepository.saveAll(activeRules);
 

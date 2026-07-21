@@ -28,7 +28,7 @@ public class Gate {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "floor_id", nullable = false)
+    @JoinColumn(name = "floor_id")
     private Floor floor;
 
     @ManyToOne(fetch = FetchType.LAZY)

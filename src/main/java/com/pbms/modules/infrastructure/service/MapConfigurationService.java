@@ -2,7 +2,7 @@
  * @Author: Nguyen Huu Thanh
  * @Date: 2026-07-06
  * @Description: Service for managing map configurations, including floors, zones, slots, and gates.
- * @Dependencies: FloorRepository, ZoneRepository, GateRepository, SlotRepository, VehicleTypeRepository, BuildingProfileRepository, ReservationRepository, SystemConfigService, ParkingSessionRepository
+ * @Dependencies: FloorRepository, ZoneRepository, GateRepository, SlotRepository, VehicleTypeRepository, BuildingProfileRepository, ReservationRepository, SystemConfigService
  */
 package com.pbms.modules.infrastructure.service;
 
@@ -18,7 +18,6 @@ import com.pbms.modules.infrastructure.repository.SlotRepository;
 import com.pbms.modules.infrastructure.repository.ZoneRepository;
 import com.pbms.modules.operation.repository.VehicleTypeRepository;
 import com.pbms.modules.operation.repository.ReservationRepository;
-import com.pbms.modules.operation.repository.ParkingSessionRepository;
 import com.pbms.modules.system.domain.BuildingProfile;
 import com.pbms.modules.system.repository.BuildingProfileRepository;
 import lombok.RequiredArgsConstructor;
@@ -43,7 +42,9 @@ public class MapConfigurationService {
     private final BuildingProfileRepository buildingProfileRepository;
     private final ReservationRepository reservationRepository;
     private final com.pbms.modules.system.service.SystemConfigService systemConfigService;
-    private final ParkingSessionRepository parkingSessionRepository;
+
+    private final com.fasterxml.jackson.databind.ObjectMapper objectMapper = new com.fasterxml.jackson.databind.ObjectMapper()
+            .registerModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule());
 
     /**
      * @Function: getMapConfiguration
@@ -51,8 +52,7 @@ public class MapConfigurationService {
      * @Logic_Steps:
      * 1. Retrieve all floors, active zones, active gates, and vehicle types from the database.
      * 2. Build FloorConfigDTO objects for each floor.
-     * 3. Fetch all active parking sessions to map current vehicle locations and suggested routing.
-     * 4. Build ZoneConfigDTO objects, associating active slots, reservations, and suggested vehicles.
+     * 3. Build ZoneConfigDTO objects, associating active slots and pending reservations.
      * 5. Build GateConfigDTO and VehicleTypeDTO objects.
      * 6. Return a fully populated MapConfigDTO containing all map data.
      */
@@ -77,45 +77,15 @@ public class MapConfigurationService {
                 .mapRows(f.getMapRows())
                 .build()).collect(Collectors.toList());
 
-        List<com.pbms.modules.operation.domain.ParkingSession> activeSessions = parkingSessionRepository.findByStatusIn(java.util.Arrays.asList("ACTIVE", "LOCKED"));
-
-        Map<Long, String> slotPlateMap = activeSessions.stream()
-                .filter(ps -> ps.getSlot() != null)
-                .collect(Collectors.toMap(
-                    ps -> ps.getSlot().getId(), 
-                    ps -> {
-                        String plate = ps.getPlate();
-                        if (plate != null && !plate.trim().isEmpty()) return plate;
-                        if (ps.getRfidCard() != null) return "RFID " + ps.getRfidCard().getCardCode();
-                        return "Unknown";
-                    }, 
-                    (p1, p2) -> p1));
-
-        Map<Long, List<String>> zoneSuggestedVehicles = activeSessions.stream()
-                .filter(ps -> ps.getSuggestedZoneId() != null)
-                .collect(Collectors.groupingBy(
-                    ps -> ps.getSuggestedZoneId(),
-                    Collectors.mapping(
-                        ps -> {
-                            String plate = ps.getPlate();
-                            if (plate != null && !plate.trim().isEmpty()) return plate;
-                            if (ps.getRfidCard() != null) return "RFID " + ps.getRfidCard().getCardCode();
-                            return "Unknown";
-                        }, 
-                        Collectors.toList()
-                    )
-                ));
-
         List<ZoneConfigDTO> zoneDTOs = zones.stream().map(z -> {
             List<SlotConfigDTO> slotDTOs = slotRepository.findByZoneId(z.getId()).stream()
                     .map(s -> SlotConfigDTO.builder()
                             .id(s.getId())
                             .name(s.getSlotName())
                             .status(s.getStatus())
-                            .plate(slotPlateMap.get(s.getId()))
                             .build()).collect(Collectors.toList());
 
-            VehicleType vt = vehicleTypes.get(z.getVehicleType().getId());
+            VehicleType vt = z.getVehicleType() != null ? vehicleTypes.get(z.getVehicleType().getId()) : null;
             
             java.time.LocalDateTime now = com.pbms.common.utils.TimeProvider.now();
             List<com.pbms.modules.operation.domain.Reservation> pendingList = reservationRepository.findByZoneIdAndStatus(z.getId(), "PENDING");
@@ -131,33 +101,27 @@ public class MapConfigurationService {
                 return !now.isBefore(startWindow) && !now.isAfter(endWindow);
             }).count();
 
-            List<String> suggested = new ArrayList<>();
-            if (zoneSuggestedVehicles.containsKey(z.getId())) {
-                suggested.addAll(zoneSuggestedVehicles.get(z.getId()));
-            }
-
             return ZoneConfigDTO.builder()
                     .id(z.getId())
-                    .floorId(z.getFloor().getId())
+                    .floorId(z.getFloor() != null ? z.getFloor().getId() : null)
                     .name(z.getZoneName())
                     .capacity(slotDTOs.size())
-                    .vehicleTypeId(vt.getId())
-                    .vehicleTypeName(vt.getTypeName())
-                    .vehicleCategory(vt.getCategory())
+                    .vehicleTypeId(vt != null ? vt.getId() : null)
+                    .vehicleTypeName(vt != null ? vt.getTypeName() : null)
+                    .vehicleCategory(vt != null ? vt.getCategory() : null)
                     .functionType(z.getFunctionType())
                     .layoutX(z.getLayoutX())
                     .layoutY(z.getLayoutY())
                     .rotation(z.getRotation())
                     .overflowThreshold(z.getOverflowThreshold())
                     .activeReservationsCount(activeReservations)
-                    .suggestedVehicles(suggested)
                     .slots(slotDTOs)
                     .build();
         }).collect(Collectors.toList());
 
         List<GateConfigDTO> gateDTOs = gates.stream().map(g -> GateConfigDTO.builder()
                 .id(g.getId())
-                .floorId(g.getFloor().getId())
+                .floorId(g.getFloor() != null ? g.getFloor().getId() : null)
                 .name(g.getGateName())
                 .type(g.getGateType())
                 .status(g.getStatus())
@@ -202,6 +166,21 @@ public class MapConfigurationService {
     public void saveMapConfiguration(MapConfigDTO mapConfig) {
         BuildingProfile defaultBuilding = buildingProfileRepository.findAll().stream().findFirst()
                 .orElseThrow(() -> new RuntimeException("No building profile configured"));
+
+        // Ghi lại giá trị CŨ (cấu hình map trước khi ghi đè) vào AuditContext -
+        // bỏ slots (đặt về mảng rỗng) trước khi serialize vì danh sách slot
+        // quá lớn/không cần thiết cho mục đích audit.
+        try {
+            com.pbms.common.context.AuditContext context = com.pbms.common.context.AuditContextHolder.getContext();
+            if (context != null) {
+                MapConfigDTO oldConfig = getMapConfiguration();
+                if (oldConfig.getZones() != null) {
+                    oldConfig.getZones().forEach(z -> z.setSlots(new ArrayList<>()));
+                }
+                context.setOldValue(objectMapper.writeValueAsString(oldConfig));
+            }
+        } catch (Exception e) {
+        }
 
         List<Floor> currentFloors = floorRepository.findAll();
         Map<Long, Floor> floorMap = currentFloors.stream().collect(Collectors.toMap(f -> f.getId(), Function.identity()));
@@ -361,6 +340,10 @@ public class MapConfigurationService {
 
         for (Gate cg : currentGates) {
             if (!incomingGateIds.contains(cg.getId()) && !"DELETED".equals(cg.getStatus())) {
+                if ("OCCUPIED".equals(cg.getStatus())) {
+                    throw new IllegalStateException(
+                        "Cannot delete gate \"" + cg.getGateName() + "\" because a staff member is currently on duty at this gate.");
+                }
                 cg.setStatus("DELETED");
                 gateRepository.save(cg);
             }
@@ -368,10 +351,25 @@ public class MapConfigurationService {
 
         for (GateConfigDTO gDTO : mapConfig.getGates()) {
             if (gDTO.getStatus() != null && gDTO.getStatus().equals("DELETED")) {
+                if (gDTO.getId() != null && gateMap.containsKey(gDTO.getId())) {
+                    Gate gToDelete = gateMap.get(gDTO.getId());
+                    if ("OCCUPIED".equals(gToDelete.getStatus())) {
+                        throw new IllegalStateException(
+                            "Cannot delete gate \"" + gToDelete.getGateName() + "\" because a staff member is currently on duty at this gate.");
+                    }
+                    if (!"DELETED".equals(gToDelete.getStatus())) {
+                        gToDelete.setStatus("DELETED");
+                        gateRepository.save(gToDelete);
+                    }
+                }
                 continue;
             }
 
-            Floor f = floorRepository.findById(gDTO.getFloorId()).orElseThrow();
+            Floor f = null;
+            if (gDTO.getFloorId() != null) {
+                f = floorRepository.findById(gDTO.getFloorId()).orElse(null);
+            }
+
             VehicleType gvt = null;
             if (gDTO.getVehicleTypeId() != null) {
                 gvt = vehicleTypeRepository.findById(gDTO.getVehicleTypeId()).orElse(null);
@@ -406,6 +404,19 @@ public class MapConfigurationService {
                 }
                 gateRepository.save(gate);
             }
+        }
+
+        // Ghi lại giá trị MỚI (cấu hình vừa lưu xong) vào AuditContext - cùng
+        // quy tắc bỏ slots như khối "old value" ở đầu hàm.
+        try {
+            com.pbms.common.context.AuditContext context = com.pbms.common.context.AuditContextHolder.getContext();
+            if (context != null) {
+                if (mapConfig.getZones() != null) {
+                    mapConfig.getZones().forEach(z -> z.setSlots(new ArrayList<>()));
+                }
+                context.setNewValue(objectMapper.writeValueAsString(mapConfig));
+            }
+        } catch (Exception e) {
         }
     }
 }

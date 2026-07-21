@@ -12,7 +12,9 @@ import jakarta.persistence.*;
 import lombok.*;
 
 @Entity
-@Table(name = "slots")
+@Table(name = "slots", indexes = {
+    @Index(name = "idx_zone_status", columnList = "zone_id, status")
+})
 @Getter
 @Setter
 @NoArgsConstructor
