@@ -1,6 +1,6 @@
 /**
  * @Author: Nguyen Huu Thanh
- * @Date: 2026-07-03
+ * @Date: 2026-07-15
  * @Description: Data Transfer Object for carrying the routing status information of a specific zone.
  * @Dependencies: lombok.Builder, lombok.Data
  */
@@ -9,52 +9,36 @@ package com.pbms.modules.operation.dto;
 import lombok.Builder;
 import lombok.Data;
 
+// DTO trả về cho màn hình check-in/gate console: 1 dòng = 1 zone kèm số
+// liệu realtime, do ZoneRoutingService.getRoutingStatus() dựng nên.
 @Data
 @Builder
 public class ZoneRoutingStatusDTO {
 
-    /**
-     * Unique identifier of the zone.
-     */
     private Long zoneId;
 
-    /**
-     * Name of the zone.
-     */
     private String zoneName;
 
-    /**
-     * Total capacity of the zone.
-     */
+    // Sức chứa hiệu dụng = tổng slot - slot đang DISABLED (bảo trì).
     private Integer capacity;
 
-    /**
-     * Number of currently occupied slots in the zone.
-     */
+    // Số slot đang có xe.
     private Integer occupied;
 
-    /**
-     * Number of reserved slots in the zone.
-     */
+    // Số reservation PENDING đang rơi vào cửa sổ đến sớm.
     private Integer reserved;
 
-    /**
-     * Number of available slots in the zone.
-     */
+    // Chỗ trống hiển thị = capacity - occupied - reserved (đã clamp >= 0).
     private Integer available;
 
-    /**
-     * Current occupancy rate of the zone.
-     */
+    // % lấp đầy nội bộ dùng cho thuật toán routing - có thể vượt 100% vì
+    // tính cả reservation như "nhu cầu" chưa tới nơi.
     private Double occupancyRate;
 
-    /**
-     * Fill threshold percentage configured for the zone.
-     */
+    // Ngưỡng đầy cấu hình của zone (để so sánh khi trượt ngưỡng); mặc định
+    // 100 nếu zone chưa có rule routing nào.
     private Integer fillThresholdPct;
 
-    /**
-     * Flag indicating if the zone is suggested for routing.
-     */
+    // true nếu đây là zone hệ thống đang gợi ý cho xe vào.
     private Boolean isSuggested;
 }
