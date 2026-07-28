@@ -1,16 +1,15 @@
 /**
  * @Author: Thái Tân Phú
  * @Date: 2026-07-09
- * @Description: Entity representing a Prebooking Reservation in the system.
+ * @Description: Thực thể (Entity) đại diện cho một Đơn Đặt Chỗ (Reservation/Prebooking).
+ *               Lưu trữ thông tin chi tiết về xe, khu vực đặt chỗ, thời gian và trạng thái của đơn.
  * @Dependencies: 
  * - Vehicle (Local)
  * - Zone (Local)
- * - User (Local)
  */
 package com.pbms.modules.operation.domain;
 
 import com.pbms.common.domain.BaseEntity;
-import com.pbms.modules.identity.domain.User;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -26,52 +25,33 @@ import java.time.LocalDateTime;
 @Builder
 public class Reservation extends BaseEntity {
 
+    // Liên kết với phương tiện thực hiện đặt chỗ
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "vehicle_id")
     private Vehicle vehicle;
 
+    // Liên kết với khu vực bãi đậu mà khách hàng muốn đặt (VD: Khu A, Khu B)
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "zone_id")
     private com.pbms.modules.infrastructure.domain.Zone zone;
 
+    // Thời gian khách hàng dự kiến sẽ lái xe vào bãi
     @Column(name = "expected_entry_time", nullable = false)
     private LocalDateTime expectedEntryTime;
 
+    // Thời lượng khách hàng dự kiến sẽ gửi xe (tính bằng phút)
     @Column(name = "expected_duration_minutes", nullable = false)
     private Integer expectedDurationMinutes;
 
-    /**
-     * Reservation lifecycle status.
-     * PENDING: Waiting for the vehicle to arrive.
-     * ACTIVE: Vehicle has entered the parking lot.
-     * COMPLETED: Vehicle has exited and session is finished.
-     * CANCELLED: Customer manually cancelled the reservation.
-     * COMPLETED_UNUSED (NO_SHOW): Customer did not arrive within the expected timeframe.
-     */
+    // Trạng thái của đơn: PENDING (Chờ), ACTIVE (Đang gửi), COMPLETED (Hoàn thành), CANCELLED (Đã hủy), NO_SHOW (Không đến)
     @Column(nullable = false, length = 50)
     private String status;
 
+    // Số tiền khách hàng đã thanh toán trước cho việc đặt chỗ
     @Column(name = "reservation_fee", nullable = false, precision = 18, scale = 2)
     private BigDecimal reservationFee;
 
-
+    // Cờ đánh dấu đã gửi thông báo đến sớm hay chưa (dùng cho hệ thống scheduler)
     @Column(name = "notified_early_arrival")
     private Boolean notifiedEarlyArrival;
-
-    @Column(name = "refund_status", length = 50)
-    private String refundStatus;
-
-    @Column(name = "refund_amount", precision = 18, scale = 2)
-    private BigDecimal refundAmount;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "refunded_by")
-    private User refundedBy;
-
-    @Column(name = "refund_proof_url", length = 500)
-    private String refundProofUrl;
-
-    @Column(name = "refund_reject_reason", columnDefinition = "VARCHAR(MAX)")
-    private String refundRejectReason;
 }
-
