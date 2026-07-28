@@ -1,8 +1,4 @@
 /**
- * @author Phạm Anh Tuấn
- * @created 12/6/2026
- */
-/**
  * @Author: Pham Anh Tuan
  * @Date: 2026-07-03
  * @Description: Lớp DTO tổng hợp chứa thông tin hiển thị của một Vé sự cố (Incident Ticket).

@@ -74,7 +74,6 @@ public class IncidentTicket extends BaseEntity {
     @JoinColumn(name = "session_id")
     private com.pbms.modules.operation.domain.ParkingSession session;
 
-
     // -------------------------------------------------------------------------
     // 2. THÔNG TIN CƠ BẢN CỦA SỰ CỐ
     // -------------------------------------------------------------------------
@@ -109,7 +108,6 @@ public class IncidentTicket extends BaseEntity {
      */
     @Column(name = "uploaded_doc_url", columnDefinition = "VARCHAR(MAX)")
     private String uploadedDocUrl;
-
 
     // -------------------------------------------------------------------------
     // 3. THÔNG TIN XỬ LÝ TỪ PHÍA NHÂN VIÊN (RESOLUTION DATA)
@@ -146,4 +144,3 @@ public class IncidentTicket extends BaseEntity {
     @Column(name = "cancel_type", length = 50)
     private String cancelType;
 }
-
