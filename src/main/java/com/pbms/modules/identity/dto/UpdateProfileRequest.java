@@ -24,8 +24,7 @@ import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
 @Data
-public class GoogleAuthRequest {
-    @NotBlank(message = "Google ID Token is required")
-    private String googleIdToken;
+public class UpdateProfileRequest {
+    @NotBlank(message = "Name is required")
+    private String name;
 }
-

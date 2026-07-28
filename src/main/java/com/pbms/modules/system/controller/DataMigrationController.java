@@ -22,57 +22,35 @@
  */
 package com.pbms.modules.system.controller;
 
-import com.pbms.common.dto.ApiResponse;
-import com.pbms.modules.system.domain.BuildingProfile;
-import com.pbms.modules.system.service.BuildingProfileService;
+import com.pbms.modules.system.service.DataMigrationService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-import com.pbms.common.annotation.LogAudit;
+import com.pbms.common.dto.ApiResponse;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 @RestController
-@RequestMapping("/api/v1/system/building-profile")
-public class BuildingProfileController {
+@RequestMapping("/api/v1/system/migration")
+@RequiredArgsConstructor
+public class DataMigrationController {
+    
+    private final DataMigrationService migrationService;
 
-    private final BuildingProfileService service;
-
-    public BuildingProfileController(BuildingProfileService service) {
-        this.service = service;
-    }
-
-    @GetMapping
+    @PostMapping("/run")
+    @PreAuthorize("hasRole('ADMIN')")
     /**
      * =========================================================================
-     * NGHIỆP VỤ: GETPROFILE
+     * NGHIỆP VỤ: RUNMIGRATION
      * =========================================================================
-     * MỤC ĐÍCH: Xử lý logic hoặc tiếp nhận request tương ứng cho getProfile.
+     * MỤC ĐÍCH: Xử lý logic hoặc tiếp nhận request tương ứng cho runMigration.
      * 
      * MÃ GIẢ CHI TIẾT TỪNG BƯỚC (PSEUDO-CODE):
      * 1. Tiếp nhận và parse dữ liệu (nếu có).
      * 2. Gọi các hàm nghiệp vụ, tương tác với Database hoặc các Service khác.
      * 3. Trả về kết quả thành công hoặc ném ra Exception nếu có lỗi xảy ra.
      */
-    public ResponseEntity<ApiResponse<BuildingProfile>> getProfile() {
-        return ResponseEntity.ok(ApiResponse.success(service.getProfile(), "Profile fetched successfully"));
-    }
-
-    @PutMapping
-    @PreAuthorize("hasRole('MANAGER')")
-    @LogAudit(action = "UPDATE", resource = "BuildingProfile", description = "Update building profile")
-    /**
-     * =========================================================================
-     * NGHIỆP VỤ: UPDATEPROFILE
-     * =========================================================================
-     * MỤC ĐÍCH: Xử lý logic hoặc tiếp nhận request tương ứng cho updateProfile.
-     * 
-     * MÃ GIẢ CHI TIẾT TỪNG BƯỚC (PSEUDO-CODE):
-     * 1. Tiếp nhận và parse dữ liệu (nếu có).
-     * 2. Gọi các hàm nghiệp vụ, tương tác với Database hoặc các Service khác.
-     * 3. Trả về kết quả thành công hoặc ném ra Exception nếu có lỗi xảy ra.
-     */
-    public ResponseEntity<ApiResponse<BuildingProfile>> updateProfile(@jakarta.validation.Valid @RequestBody BuildingProfile profile) {
-        BuildingProfile updated = service.updateProfile(profile);
-        return ResponseEntity.ok(ApiResponse.success(updated, "Profile updated successfully"));
+    public ResponseEntity<ApiResponse<String>> runMigration() {
+        migrationService.runMigration();
+        return ResponseEntity.ok(ApiResponse.success(null, "Migration triggered successfully"));
     }
 }
-
