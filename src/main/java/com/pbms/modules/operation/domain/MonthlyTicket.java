@@ -1,69 +1,52 @@
 /**
  * @Author: Thái Tân Phú
  * @Date: 2026-07-06
- * @Description: Entity representing a Monthly Ticket in the system.
+ * @Description: Thực thể (Entity) đại diện cho Vé Tháng (Monthly Ticket) trong cơ sở dữ liệu.
+ *               Lưu trữ thông tin liên kết giữa người dùng, xe, loại xe và thời hạn của vé.
+ * @Dependencies: 
+ * - BaseEntity (Kế thừa các trường common như id, createdAt, updatedAt)
  */
 package com.pbms.modules.operation.domain;
 
+import com.pbms.common.domain.BaseEntity;
 import com.pbms.modules.identity.domain.User;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
+import lombok.*;
 
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "monthly_ticket")
-@Data
-@Builder
+@Table(name = "monthly_tickets")
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class MonthlyTicket {
+@Builder
+public class MonthlyTicket extends BaseEntity {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
-    @Column(nullable = false, length = 20)
-    private String plate;
-
-    @Column(name = "valid_from", nullable = false)
-    private LocalDateTime validFrom;
-
-    @Column(name = "valid_until", nullable = false)
-    private LocalDateTime validUntil;
-
-    /** 
-     * Status of the ticket.
-     * ACTIVE, EXPIRED 
-     */
-    @Column(nullable = false, length = 20)
-    private String status;
-
-    @Column(name = "auto_renew")
-    private Boolean autoRenew;
-
-    @CreationTimestamp
-    @Column(name = "created_at", updatable = false)
-    private LocalDateTime createdAt;
-
-    @UpdateTimestamp
-    @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
-
+    // Liên kết với bảng người dùng (chủ sở hữu vé)
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
     private User user;
 
+    // Biển số xe được đăng ký cho vé tháng này
+    @Column(name = "plate_number", nullable = false, length = 50)
+    private String plateNumber;
+
+    // Liên kết với bảng loại xe (VD: Xe máy, Ô tô) để tính giá tiền và kiểm tra logic
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "vehicle_type_id")
+    @JoinColumn(name = "vehicle_type_id", nullable = false)
     private VehicleType vehicleType;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "card_id")
-    private RfidCard rfidCard;
+    // Thời điểm bắt đầu có hiệu lực của vé
+    @Column(name = "valid_from", nullable = false)
+    private LocalDateTime validFrom;
+
+    // Thời điểm hết hạn của vé
+    @Column(name = "valid_until", nullable = false)
+    private LocalDateTime validUntil;
+
+    // Trạng thái hiện tại của vé: ACTIVE (Đang hoạt động), EXPIRED (Hết hạn), CANCELLED (Bị hủy)
+    @Column(nullable = false, length = 50)
+    private String status;
 }
