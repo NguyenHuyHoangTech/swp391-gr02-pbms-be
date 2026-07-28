@@ -1,3 +1,4 @@
+// Author: Võ Trung Hiếu
 package com.pbms.modules.finance.dto;
 
 import lombok.AllArgsConstructor;
@@ -19,6 +20,7 @@ public class RevenueTransactionDTO {
     private BigDecimal baseFee;
     private BigDecimal overtimeFee;
     private BigDecimal penaltyFee;
+    private BigDecimal reservationFee;
     private BigDecimal totalFee;
     private String paymentMethod;
 }

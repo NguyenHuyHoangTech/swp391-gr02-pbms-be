@@ -1,39 +1,23 @@
+// Author: Võ Trung Hiếu
 package com.pbms.modules.finance.service;
 
-// DTO chứa thông tin doanh thu tổng hợp (ngày, tổng tiền, loại giao dịch,...)
 import com.pbms.modules.finance.dto.RevenueRecordDTO;
-// Quản lý các thao tác tương tác với cơ sở dữ liệu của JPA (Entity Manager)
 import jakarta.persistence.EntityManager;
-// Annotation chỉ định tiêm (inject) EntityManager từ Persistence Context vào service
 import jakarta.persistence.PersistenceContext;
-// Giao diện (Interface) đại diện cho câu lệnh truy vấn cơ sở dữ liệu (SQL hoặc JPQL) trong JPA
 import jakarta.persistence.Query;
-// Lớp ghi trực tiếp dữ liệu dạng luồng (Streaming) giúp tải các tệp tin CSV lớn hiệu quả hơn
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
-// Lombok annotation tự động tạo constructor cho các biến final
 import lombok.RequiredArgsConstructor;
-// Lombok annotation cung cấp logger (SLF4J) tự động để ghi log gỡ lỗi
 import lombok.extern.slf4j.Slf4j;
-// Lớp đại diện cho một trang dữ liệu phân trang (Pagination) trong Spring Data
 import org.springframework.data.domain.Page;
-// Triển khai của giao diện Page để bọc danh sách kết quả và thông tin trang (page, size, total)
 import org.springframework.data.domain.PageImpl;
-// Lớp triển khai Pageable định nghĩa yêu cầu phân trang (chứa page number và page size)
 import org.springframework.data.domain.PageRequest;
-// Annotation khai báo class này là một Service trong Spring Container
 import org.springframework.stereotype.Service;
-// Quản lý giao dịch cơ sở dữ liệu (Transaction) tự động (Commit/Rollback khi có exception)
 import org.springframework.transaction.annotation.Transactional;
 
-// Thư viện hỗ trợ ghi văn bản (character-output) ra luồng, hữu ích cho việc định dạng dữ liệu CSV
 import java.io.PrintWriter;
-// Lớp tính toán số học có độ chính xác cao đối với tiền tệ (BigDecimal)
 import java.math.BigDecimal;
-// Đối tượng lưu trữ ngày (năm, tháng, ngày)
 import java.time.LocalDate;
-// Danh sách mảng động (ArrayList)
 import java.util.ArrayList;
-// Giao diện List trong Java
 import java.util.List;
 
 @Service
@@ -57,6 +41,7 @@ public class RevenueService {
         LEFT JOIN vehicle_types vt ON ps.vehicle_type_id = vt.id 
         LEFT JOIN gates g ON ps.gate_out_id = g.id 
         LEFT JOIN monthly_tickets mt ON ps.plate = mt.plate_number AND mt.status != 'CANCELLED' AND ps.time_in BETWEEN mt.valid_from AND mt.valid_until
+        LEFT JOIN reservations r ON ps.reservation_id = r.id
         OUTER APPLY (
             SELECT TOP 1 payment_method 
             FROM transactions trx 
@@ -69,7 +54,7 @@ public class RevenueService {
                     WHEN ps.reservation_id IS NOT NULL THEN 'Reservation' 
                     WHEN mt.id IS NOT NULL THEN 'Monthly Ticket' 
                     ELSE 'Standard Ticket' 
-                 END, ps.parking_fee),
+                 END, COALESCE(ps.parking_fee, 0) + COALESCE(r.reservation_fee, 0)),
                 ('Overtime Surcharge', ps.overtime_fee),
                 ('Penalty', ps.penalty_fee)
         ) AS v(revenueSource, revenueAmount)
@@ -128,14 +113,16 @@ public class RevenueService {
             ps.plate,
             COALESCE(vt.type_name, 'Unclear') AS vehicleType,
             COALESCE(g.gate_name, 'N/A') AS gateName, 
+            COALESCE(r.reservation_fee, 0) AS reservationFee,
             COALESCE(ps.parking_fee, 0) AS baseFee,
             COALESCE(ps.overtime_fee, 0) AS overtimeFee,
             COALESCE(ps.penalty_fee, 0) AS penaltyFee,
-            (COALESCE(ps.parking_fee, 0) + COALESCE(ps.overtime_fee, 0) + COALESCE(ps.penalty_fee, 0)) AS totalFee,
+            (COALESCE(r.reservation_fee, 0) + COALESCE(ps.parking_fee, 0) + COALESCE(ps.overtime_fee, 0) + COALESCE(ps.penalty_fee, 0)) AS totalFee,
             COALESCE(t.payment_method, 'CASH') AS paymentMethod
         FROM parking_sessions ps 
         LEFT JOIN vehicle_types vt ON ps.vehicle_type_id = vt.id 
         LEFT JOIN gates g ON ps.gate_out_id = g.id 
+        LEFT JOIN reservations r ON ps.reservation_id = r.id
         OUTER APPLY (
             SELECT TOP 1 payment_method 
             FROM transactions trx 
@@ -143,7 +130,7 @@ public class RevenueService {
             ORDER BY trx.created_at DESC
         ) t
         WHERE ps.status = 'COMPLETED' 
-          AND (COALESCE(ps.parking_fee, 0) + COALESCE(ps.overtime_fee, 0) + COALESCE(ps.penalty_fee, 0)) > 0
+          AND (COALESCE(r.reservation_fee, 0) + COALESCE(ps.parking_fee, 0) + COALESCE(ps.overtime_fee, 0) + COALESCE(ps.penalty_fee, 0)) > 0
           AND CAST(ps.time_out AS DATE) >= :startDate 
           AND CAST(ps.time_out AS DATE) <= :endDate 
         UNION ALL
@@ -152,6 +139,7 @@ public class RevenueService {
             N'N/A' AS plate,
             'Unclear' AS vehicleType,
             N'N/A' AS gateName, 
+            0 AS reservationFee,
             0 AS baseFee,
             0 AS overtimeFee,
             t.amount AS penaltyFee,
@@ -168,6 +156,7 @@ public class RevenueService {
             mt.plate_number AS plate,
             COALESCE(vt.type_name, 'Unclear') AS vehicleType,
             N'N/A' AS gateName, 
+            0 AS reservationFee,
             t.amount AS baseFee,
             0 AS overtimeFee,
             0 AS penaltyFee,
@@ -250,7 +239,7 @@ public class RevenueService {
                 outputStream.write(0xBF);
 
                 try (PrintWriter writer = new PrintWriter(new java.io.OutputStreamWriter(outputStream, java.nio.charset.StandardCharsets.UTF_8))) {
-                    writer.println("Ngày giờ ra;Biển số;Loại xe;Cổng ra;Tiền vé;Tiền lố giờ;Tiền phạt;Tổng thu;Thanh toán");
+                    writer.println("Ngày giờ ra;Biển số;Loại xe;Cổng ra;Tiền đặt chỗ;Tiền vé;Tiền lố giờ;Tiền phạt;Tổng thu;Thanh toán");
 
                     Query query = entityManager.createNativeQuery("SELECT * FROM (" + TABLE_SQL + ") AS raw_data ORDER BY checkoutTime DESC");
                     query.setParameter("startDate", startDate.toString());
@@ -268,14 +257,15 @@ public class RevenueService {
                         String plate = (String) row[1];
                         String vehicleType = (String) row[2];
                         String gateName = (String) row[3];
-                        BigDecimal baseFee = row[4] != null ? new BigDecimal(row[4].toString()) : BigDecimal.ZERO;
-                        BigDecimal overtimeFee = row[5] != null ? new BigDecimal(row[5].toString()) : BigDecimal.ZERO;
-                        BigDecimal penaltyFee = row[6] != null ? new BigDecimal(row[6].toString()) : BigDecimal.ZERO;
-                        BigDecimal totalFee = row[7] != null ? new BigDecimal(row[7].toString()) : BigDecimal.ZERO;
-                        String paymentMethod = (String) row[8];
+                        BigDecimal reservationFee = row[4] != null ? new BigDecimal(row[4].toString()) : BigDecimal.ZERO;
+                        BigDecimal baseFee = row[5] != null ? new BigDecimal(row[5].toString()) : BigDecimal.ZERO;
+                        BigDecimal overtimeFee = row[6] != null ? new BigDecimal(row[6].toString()) : BigDecimal.ZERO;
+                        BigDecimal penaltyFee = row[7] != null ? new BigDecimal(row[7].toString()) : BigDecimal.ZERO;
+                        BigDecimal totalFee = row[8] != null ? new BigDecimal(row[8].toString()) : BigDecimal.ZERO;
+                        String paymentMethod = (String) row[9];
 
-                        writer.printf("%s;%s;%s;%s;%s;%s;%s;%s;%s\n",
-                                checkoutTime, plate, vehicleType, gateName, baseFee, overtimeFee, penaltyFee, totalFee, paymentMethod);
+                        writer.printf("%s;%s;%s;%s;%s;%s;%s;%s;%s;%s\n",
+                                checkoutTime, plate, vehicleType, gateName, reservationFee, baseFee, overtimeFee, penaltyFee, totalFee, paymentMethod);
                     });
                 }
             } catch (Exception e) {
@@ -293,11 +283,12 @@ public class RevenueService {
                     .plate((String) row[1])
                     .vehicleType((String) row[2])
                     .gateName((String) row[3])
-                    .baseFee(row[4] != null ? new BigDecimal(row[4].toString()) : BigDecimal.ZERO)
-                    .overtimeFee(row[5] != null ? new BigDecimal(row[5].toString()) : BigDecimal.ZERO)
-                    .penaltyFee(row[6] != null ? new BigDecimal(row[6].toString()) : BigDecimal.ZERO)
-                    .totalFee(row[7] != null ? new BigDecimal(row[7].toString()) : BigDecimal.ZERO)
-                    .paymentMethod((String) row[8])
+                    .reservationFee(row[4] != null ? new BigDecimal(row[4].toString()) : BigDecimal.ZERO)
+                    .baseFee(row[5] != null ? new BigDecimal(row[5].toString()) : BigDecimal.ZERO)
+                    .overtimeFee(row[6] != null ? new BigDecimal(row[6].toString()) : BigDecimal.ZERO)
+                    .penaltyFee(row[7] != null ? new BigDecimal(row[7].toString()) : BigDecimal.ZERO)
+                    .totalFee(row[8] != null ? new BigDecimal(row[8].toString()) : BigDecimal.ZERO)
+                    .paymentMethod((String) row[9])
                     .build());
         }
         return dtoList;

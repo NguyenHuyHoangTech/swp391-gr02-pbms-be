@@ -1,19 +1,13 @@
+// Author: Võ Trung Hiếu
 package com.pbms.modules.finance.service;
 
-// Annotation của Lombok tự động sinh constructor nhận các trường final làm đối số
 import lombok.RequiredArgsConstructor;
-// Lớp tiện ích của Spring để thực thi các câu lệnh SQL thuần túy (Raw SQL) thông qua JDBC
 import org.springframework.jdbc.core.JdbcTemplate;
-// Annotation đánh dấu một class là một Service chứa logic nghiệp vụ trong mô hình Spring
 import org.springframework.stereotype.Service;
 
-// Lớp đại diện cho ngày (năm, tháng, ngày) trong Java Modern Date/Time API
 import java.time.LocalDate;
-// Triển khai cấu trúc dữ liệu danh sách động (Dynamic Array List)
 import java.util.ArrayList;
-// Giao diện (Interface) List đại diện cho một tập hợp các phần tử có thứ tự
 import java.util.List;
-// Giao diện (Interface) Map đại diện cho tập hợp lưu trữ khóa-giá trị (Key-Value)
 import java.util.Map;
 
 @Service

@@ -1,15 +1,11 @@
+// Author: Võ Trung Hiếu
 package com.pbms.modules.system.service;
 
-// Model thực thể đại diện cho cấu hình hệ thống (gồm key và value) lưu trữ trong DB
 import com.pbms.modules.system.domain.SystemConfig;
-// Repository JPA dùng để thực thi các câu lệnh tương tác với bảng system_configs trong DB
 import com.pbms.modules.system.repository.SystemConfigRepository;
-// Annotation định nghĩa class này là một Service trong Spring Container
 import org.springframework.stereotype.Service;
-// Quản lý giao dịch CSDL (Transaction) tự động trên các phương thức nghiệp vụ
 import org.springframework.transaction.annotation.Transactional;
 
-// Thư viện danh sách (List) trong Java
 import java.util.List;
 
 @Service

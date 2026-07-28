@@ -1,35 +1,21 @@
+// Author: Võ Trung Hiếu
 package com.pbms.modules.finance.service;
 
-// Model thực thể (Entity) đại diện cho một khối giá (Pricing Block) trong CSDL
 import com.pbms.modules.finance.domain.PricingBlock;
-// Model thực thể đại diện cho bảng chính sách giá (Pricing Policy) trong CSDL
 import com.pbms.modules.finance.domain.PricingPolicy;
-// Model thực thể đại diện cho ca/khung giờ tính giá (Pricing Shift) trong CSDL
 import com.pbms.modules.finance.domain.PricingShift;
-// DTO bọc dữ liệu của PricingBlock phục vụ truyền tải qua mạng
 import com.pbms.modules.finance.dto.PricingBlockDTO;
-// DTO bọc dữ liệu chính sách giá đầy đủ để gửi trả về cho Client hoặc nhận từ Client
 import com.pbms.modules.finance.dto.PricingPolicyDTO;
-// DTO bọc dữ liệu của ca/khung giờ tính giá (Pricing Shift)
 import com.pbms.modules.finance.dto.PricingShiftDTO;
-// Repository JPA dùng để truy vấn, cập nhật bảng pricing_policies trong cơ sở dữ liệu
 import com.pbms.modules.finance.repository.PricingPolicyRepository;
-// Model thực thể đại diện cho các loại phương tiện (Ô tô, xe máy,...) trong CSDL
 import com.pbms.modules.operation.domain.VehicleType;
-// Repository JPA quản lý thực thể loại phương tiện (VehicleType)
 import com.pbms.modules.operation.repository.VehicleTypeRepository;
-// Annotation khai báo class này là một Service trong kiến trúc Spring Boot IOC
 import org.springframework.stereotype.Service;
-// Annotation quản lý đóng/mở giao dịch CSDL (Transaction) tự động trên các phương thức của Service
 import org.springframework.transaction.annotation.Transactional;
-// Repository JPA quản lý các lệnh thanh toán của hệ thống
 import com.pbms.modules.finance.repository.PaymentOrderRepository;
 
-// Lớp lưu trữ giờ (không chứa ngày hay múi giờ) dùng để định vị thời gian bắt đầu/kết thúc ca giá
 import java.time.LocalTime;
-// Giao diện cấu trúc danh sách trong Java
 import java.util.List;
-// Tiện ích trong Java Stream API hỗ trợ gom các kết quả xử lý luồng thành dạng danh sách (List)
 import java.util.stream.Collectors;
 
 @Service
