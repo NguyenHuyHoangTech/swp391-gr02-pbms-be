@@ -44,12 +44,6 @@ public class VehicleTypeService {
         this.slotRepository = slotRepository;
     }
 
-    /**
-     * @Function: getAllVehicleTypes
-     * @Description: Liệt kê loại xe cho FE. activeOnly=true thì bỏ loại đã
-     * INACTIVE. hasMapSlots cho biết loại này đã có slot trên bản đồ chưa
-     * (FE dùng để khoá ô nhập kích thước).
-     */
     public List<VehicleTypeDTO> getAllVehicleTypes(boolean activeOnly) {
         return repository.findAll().stream()
                 .filter(vt -> !activeOnly || "ACTIVE".equals(vt.getStatus() != null ? vt.getStatus() : "ACTIVE"))
@@ -66,13 +60,6 @@ public class VehicleTypeService {
                 .collect(Collectors.toList());
     }
 
-    /**
-     * @Function: createVehicleType
-     * @Description: Tạo loại xe mới, đồng thời tự sinh 1 chính sách giá mặc
-     * định (5.000đ, thuê tháng 200.000đ, 1 ca "All Day") để tránh lỗi "tính
-     * ra phí 0đ" khi loại xe mới này check-out mà manager chưa kịp cấu hình
-     * giá.
-     */
     @Transactional
     public VehicleTypeDTO createVehicleType(VehicleTypeDTO dto) {
         VehicleType vt = VehicleType.builder()
@@ -84,58 +71,55 @@ public class VehicleTypeService {
                 .iconUrl(dto.getIconUrl())
                 .build();
         vt = repository.save(vt);
-
+        
+        // Create default pricing policy to avoid 0 fee errors
         PricingPolicyDTO policyDTO = new PricingPolicyDTO();
         policyDTO.setPolicyName("Default " + dto.getTypeName() + " Policy");
         policyDTO.setVehicleTypeId(vt.getId());
         policyDTO.setGlobalBaseMins(0);
         policyDTO.setGlobalBaseFee(new BigDecimal("5000"));
+
         policyDTO.setMonthlyRate(new BigDecimal("200000"));
         policyDTO.setStatus("ACTIVE");
-
+        
         PricingShiftDTO shift = new PricingShiftDTO();
         shift.setShiftName("All Day");
         shift.setStartTime("00:00");
         shift.setEndTime("23:59");
         shift.setTotalDurationMins(1439);
-
+        
         PricingBlockDTO block = new PricingBlockDTO();
         block.setBlockOrder(1);
         block.setDurationMins(1439);
         block.setFee(new BigDecimal("5000"));
-
+        
         shift.getBlocks().add(block);
         policyDTO.getShifts().add(shift);
+        
         pricingService.savePolicy(policyDTO);
-
+        
         dto.setId(vt.getId());
         dto.setStatus("ACTIVE");
         return dto;
     }
 
-    /**
-     * @Function: updateVehicleType
-     * @Description: Cập nhật loại xe với 2 chốt chặn an toàn: (1) đổi hạng
-     * mục hoặc khoá (INACTIVE) khi đang có xe đỗ -> chặn; (2) đổi kích thước
-     * matrix khi đã có slot trên bản đồ -> chặn.
-     */
     @Transactional
     public VehicleTypeDTO updateVehicleType(Long id, VehicleTypeDTO dto) {
         VehicleType vt = repository.findById(id).orElseThrow(() -> new RuntimeException("VehicleType not found"));
-
+        
         boolean categoryChanged = vt.getCategory() != null && !vt.getCategory().equals(dto.getCategory());
         boolean statusChangedToInactive = dto.getStatus() != null && "INACTIVE".equals(dto.getStatus()) && !"INACTIVE".equals(vt.getStatus());
-
+        
         if (categoryChanged || statusChangedToInactive) {
             long activeSessions = sessionRepository.countByVehicleTypeIdAndStatus(id, "ACTIVE");
             if (activeSessions > 0) {
                 throw new RuntimeException("Cannot lock or change category of this vehicle type while there are vehicles of this type currently parking.");
             }
         }
-
-        boolean matrixChanged = (dto.getMatrixWidth() != null && !dto.getMatrixWidth().equals(vt.getMatrixWidth()))
+        
+        boolean matrixChanged = (dto.getMatrixWidth() != null && !dto.getMatrixWidth().equals(vt.getMatrixWidth())) 
                              || (dto.getMatrixHeight() != null && !dto.getMatrixHeight().equals(vt.getMatrixHeight()));
-
+                             
         if (matrixChanged) {
             long slotsOnMap = slotRepository.countByVehicleTypeId(id);
             if (slotsOnMap > 0) {
@@ -159,29 +143,37 @@ public class VehicleTypeService {
         return dto;
     }
 
-    /**
-     * @Function: deleteVehicleType
-     * @Description: "Xoá mềm" loại xe - thực chất là đảo trạng thái
-     * ACTIVE/INACTIVE.
-     */
     @Transactional
-    public void deleteVehicleType(Long id) {
+    public void toggleVehicleTypeStatus(Long id) {
         VehicleType vt = repository.findById(id).orElseThrow(() -> new RuntimeException("VehicleType not found"));
-        vt.setStatus("ACTIVE".equals(vt.getStatus()) ? "INACTIVE" : "ACTIVE");
+
+        boolean lockingNow = "ACTIVE".equals(vt.getStatus());
+
+        // Cùng chốt chặn với `updateVehicleType`: không cho KHÓA loại xe khi vẫn
+        // còn xe loại đó đang đỗ trong bãi. Trước đây chốt chặn chỉ nằm ở đường
+        // sửa qua modal (PUT), còn nút Lock/Unlock trên màn hình quản lý lại đi
+        // đường PATCH này nên bỏ qua hoàn toàn — tức là quy tắc nghiệp vụ bị vô
+        // hiệu đúng ở cách thao tác phổ biến nhất. Khóa nhầm sẽ khiến mọi xe
+        // cùng loại không check-in được nữa (`GateOperationService` chặn với
+        // "Vehicle type is blocked/inactive").
+        // Chiều MỞ KHÓA không cần kiểm tra: mở lại luôn là thao tác an toàn.
+        if (lockingNow) {
+            long activeSessions = sessionRepository.countByVehicleTypeIdAndStatus(id, "ACTIVE");
+            if (activeSessions > 0) {
+                throw new RuntimeException("Cannot lock this vehicle type while there are vehicles of this type currently parking.");
+            }
+        }
+
+        vt.setStatus(lockingNow ? "INACTIVE" : "ACTIVE");
         repository.save(vt);
     }
 
-    /**
-     * @Function: updateIcon
-     * @Description: Cập nhật riêng đường dẫn icon (sau khi upload ảnh) và
-     * trả về DTO đầy đủ để FE làm mới ngay avatar loại xe.
-     */
     @Transactional
     public VehicleTypeDTO updateIcon(Long id, String iconUrl) {
         VehicleType vt = repository.findById(id).orElseThrow(() -> new RuntimeException("VehicleType not found"));
         vt.setIconUrl(iconUrl);
         vt = repository.save(vt);
-
+        
         return VehicleTypeDTO.builder()
                 .id(vt.getId())
                 .typeName(vt.getTypeName())
@@ -194,3 +186,4 @@ public class VehicleTypeService {
                 .build();
     }
 }
+

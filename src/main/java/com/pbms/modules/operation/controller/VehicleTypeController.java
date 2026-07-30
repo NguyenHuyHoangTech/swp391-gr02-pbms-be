@@ -32,10 +32,6 @@ public class VehicleTypeController {
         this.fileStorageService = fileStorageService;
     }
 
-    /**
-     * Lấy danh sách các loại xe trong hệ thống.
-     * Cung cấp dữ liệu để hiển thị hoặc cho phép nhân viên chọn loại xe lúc check-in.
-     */
     @GetMapping
     @PreAuthorize("hasAnyRole('MANAGER', 'STAFF')")
     public ResponseEntity<ApiResponse<List<VehicleTypeDTO>>> getAll(
@@ -43,37 +39,25 @@ public class VehicleTypeController {
         return ResponseEntity.ok(ApiResponse.success(service.getAllVehicleTypes(activeOnly), "Fetched successfully"));
     }
 
-    /**
-     * Khởi tạo và thêm mới một loại xe vào hệ thống.
-     */
     @PostMapping
     @LogAudit(action = "CREATE", resource = "VehicleType", description = "Create vehicle type")
     public ResponseEntity<ApiResponse<VehicleTypeDTO>> create(@RequestBody VehicleTypeDTO dto) {
         return ResponseEntity.ok(ApiResponse.success(service.createVehicleType(dto), "Created successfully"));
     }
 
-    /**
-     * Cập nhật thông số của một loại xe hiện có (VD: sửa kích thước ma trận xe).
-     */
     @PutMapping("/{id}")
     @LogAudit(action = "UPDATE", resource = "VehicleType", description = "Update vehicle type")
     public ResponseEntity<ApiResponse<VehicleTypeDTO>> update(@PathVariable Long id, @RequestBody VehicleTypeDTO dto) {
         return ResponseEntity.ok(ApiResponse.success(service.updateVehicleType(id, dto), "Vehicle type updated successfully"));
     }
 
-    /**
-     * Gỡ bỏ một loại xe khỏi hệ thống quản lý.
-     */
-    @DeleteMapping("/{id}")
-    @LogAudit(action = "DELETE", resource = "VehicleType", description = "Delete vehicle type")
-    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable Long id) {
-        service.deleteVehicleType(id);
-        return ResponseEntity.ok(ApiResponse.success(null, "Deleted successfully"));
+    @PatchMapping("/{id}/status")
+    @LogAudit(action = "UPDATE", resource = "VehicleType", description = "Toggle vehicle type status (lock/unlock)")
+    public ResponseEntity<ApiResponse<Void>> toggleStatus(@PathVariable Long id) {
+        service.toggleVehicleTypeStatus(id);
+        return ResponseEntity.ok(ApiResponse.success(null, "Status updated successfully"));
     }
 
-    /**
-     * Xử lý tải lên file ảnh biểu tượng cho loại xe (dùng trên màn hình hiển thị).
-     */
     @PostMapping("/{id}/icon")
     public ResponseEntity<ApiResponse<VehicleTypeDTO>> uploadIcon(
             @PathVariable Long id,
@@ -83,3 +67,4 @@ public class VehicleTypeController {
         return ResponseEntity.ok(ApiResponse.success(updated, "Icon uploaded successfully"));
     }
 }
+
