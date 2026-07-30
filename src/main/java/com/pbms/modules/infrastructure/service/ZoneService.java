@@ -10,22 +10,54 @@
  */
 package com.pbms.modules.infrastructure.service;
 
-import com.pbms.modules.infrastructure.domain.Slot;
-import com.pbms.modules.infrastructure.domain.Zone;
-import com.pbms.modules.infrastructure.dto.SlotDTO;
-import com.pbms.modules.infrastructure.dto.ZoneDTO;
-import com.pbms.modules.infrastructure.repository.SlotRepository;
-import com.pbms.modules.infrastructure.repository.ZoneRepository;
+// =========================================================================
+// PHẦN 1: CÁC DOMAIN ENTITY VÀ DATA TRANSFER OBJECT (DTO)
+// =========================================================================
+import com.pbms.modules.infrastructure.domain.Slot; // Entity bảng slots (ô đỗ xe).
+import com.pbms.modules.infrastructure.domain.Zone; // Entity bảng zones (khu vực đỗ xe).
+import com.pbms.modules.infrastructure.dto.SlotDTO; // DTO ô đỗ xe gửi cho Client.
+import com.pbms.modules.infrastructure.dto.ZoneDTO; // DTO tổng hợp thông tin khu vực gửi cho Client.
+
+// =========================================================================
+// PHẦN 2: REPOSITORY TRUY VẤN VÀ CẤU HÌNH HỆ THỐNG
+// =========================================================================
+import com.pbms.modules.infrastructure.repository.SlotRepository; // Kho truy vấn ô đỗ.
+import com.pbms.modules.infrastructure.repository.ZoneRepository; // Kho truy vấn khu vực.
+import com.pbms.modules.operation.repository.ReservationRepository; // Kho tra cứu đơn đặt chỗ trước (booking).
+import com.pbms.modules.system.service.SystemConfigService; // Tra cứu tham số cấu hình hệ thống (thời gian đến sớm cho phép).
+
+// =========================================================================
+// PHẦN 3: LOMBOK VÀ SPRING BOOT SERVICE
+// =========================================================================
 import org.springframework.stereotype.Service;
 import lombok.RequiredArgsConstructor;
+import org.springframework.transaction.annotation.Transactional;
+
 import java.util.List;
 import java.util.stream.Collectors;
 
-import com.pbms.modules.operation.repository.ReservationRepository;
-import com.pbms.modules.system.service.SystemConfigService;
-
+/**
+ * =========================================================================================
+ * DỊCH VỤ NGHIỆP VỤ TÍNH TOÁN VÀ QUẢN LÝ KHU VỰC ĐỖ XE (ZONE SERVICE)
+ * =========================================================================================
+ *
+ * MỤC ĐÍCH:
+ * Service này chịu trách nhiệm tính toán thời gian thực tổng sức chứa, số lượng ô
+ * đỗ thực tế còn trống và số lượng xe đặt trước đang sắp tới của từng khu vực trong
+ * bãi xe để hiển thị chính xác lên bản đồ bãi xe (SpaceMapScreen).
+ *
+ * BẰNG CHỨNG KIẾN TRÚC:
+ * - Minh chứng 1: Không dùng các trường tĩnh dễ bị lệch (drift) trong DB mà tính toán
+ *   động (dynamic calculation) số lượng chỗ trống từ danh sách Slot thực tế có trạng thái
+ *   EMPTY hoặc AVAILABLE.
+ * - Minh chứng 2: Trừ đi số lượng đặt chỗ (Reservation) ở trạng thái PENDING có thời gian
+ *   dự kiến nằm trong khoảng khung giờ `RESERVATION_EARLY_MINS`, tránh việc khách đặt trước
+ *   đến bãi lại không có chỗ đỗ.
+ * =========================================================================================
+ */
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class ZoneService {
 
     private final ZoneRepository zoneRepository;
@@ -34,21 +66,24 @@ public class ZoneService {
     private final SystemConfigService systemConfigService;
 
     /**
-     * @Function: getMapZones
-     * @Description: Retrieves all zones with their slots and calculates available slots based on physical capacity and pending reservations.
-     * @Logic_Steps:
-     * 1. Retrieve all zones from ZoneRepository, filtering out those with 'DELETED' status.
-     * 2. Loop through each zone:
-     *    2.1. Retrieve all slots for the zone.
-     *    2.2. Calculate total slots and physically available slots ("EMPTY" or "AVAILABLE").
-     *    2.3. Determine reservation window from SystemConfigService (default 30 mins).
-     *    2.4. Get current time and calculate pending reservations within the time window.
-     *    2.5. Calculate actual available slots (physically available minus pending).
-     *    2.6. Map slots to SlotDTOs.
-     *    2.7. Build and return ZoneDTO.
-     * 3. Return the list of ZoneDTOs.
-     * 
-     * @returns {List<ZoneDTO>} List of mapped zone DTOs with calculated availability
+     * =========================================================================
+     * API/HÀM: LẤY DANH SÁCH KHU VỰC VÀ TÍNH TOÁN SUẤT ĐỖ CHO BẢN ĐỒ
+     * =========================================================================
+     * MỤC ĐÍCH:
+     * Tổng hợp danh sách Zone (trừ các Zone đã xóa), đếm số ô trống vật lý và
+     * trừ đi suất đặt trước hợp lệ để ra số chỗ trống thực tế.
+     *
+     * MÃ GIẢ CHI TIẾT:
+     * 1. Lấy tất cả Zone từ DB, lọc bỏ các Zone có trạng thái "DELETED".
+     * 2. Với mỗi Zone:
+     *    a. Truy vấn danh sách Slot thuộc Zone (`slotRepository.findByZoneId`).
+     *    b. Đếm số lượng Slot có trạng thái "EMPTY" hoặc "AVAILABLE".
+     *    c. Đọc cấu hình `RESERVATION_EARLY_MINS` (mặc định 30 phút).
+     *    d. Kiểm tra danh sách Reservation đang "PENDING" xem có bao nhiêu xe đang
+     *       nằm trong khung thời gian hợp lệ sắp đến.
+     *    e. Tính `availableSlots = Math.max(0, physicalAvailableSlots - pendingReservations)`.
+     *    f. Ánh xạ danh sách Slot và thuộc tính Zone thành ZoneDTO.
+     * 3. Trả về danh sách ZoneDTO.
      */
     public List<ZoneDTO> getMapZones() {
         List<Zone> zones = zoneRepository.findAll().stream()
@@ -58,9 +93,14 @@ public class ZoneService {
         return zones.stream().map(zone -> {
             List<Slot> slots = slotRepository.findByZoneId(zone.getId());
             long totalSlots = slots.size();
+            // Đếm số lượng ô đỗ vật lý đang trống ("EMPTY") hoặc sẵn sàng sử dụng ("AVAILABLE")
             long physicalAvailableSlots = slots.stream().filter(s -> "EMPTY".equals(s.getStatus()) || "AVAILABLE".equals(s.getStatus())).count();
             
-            // Subtract pending virtual reservations that are in the arrival window
+            // TÍNH TOÁN SUẤT ĐẶT TRƯỚC HỢP LỆ (VIRTUAL RESERVATION SUBTRACTION):
+            // LƯU Ý KIẾN TRÚC: Khách đặt trước (PENDING) sẽ được giữ chỗ ảo trong khoảng thời gian
+            // trước giờ đến dự kiến `RESERVATION_EARLY_MINS` (mặc định 30 phút).
+            // Nếu khách chưa tới trong khung thời gian này, ô trống thực tế bị trừ đi để bảo đảm
+            // khi khách lái xe tới bãi sẽ luôn còn suất đỗ tương ứng.
             int windowMinutes = 30;
             try { 
                 String configVal = systemConfigService.getConfigByKey("RESERVATION_EARLY_MINS").getConfigValue();
@@ -75,15 +115,12 @@ public class ZoneService {
                 return !nowTime.isBefore(startWindow) && !nowTime.isAfter(endWindow);
             }).count();
 
-            // Không giới hạn pendingReservations theo chỗ trống vật lý - cố ý
-            // đếm cả xe đã đặt trước như "nhu cầu" để đẩy khách vãng lai
-            // tránh xa, giữ chỗ cho xe sắp tới. availableSlots vẫn phải
-            // clamp về 0 vì đây là số hiển thị cho khách, không thể âm.
             long pendingReservations = countInWindow;
+            // Số chỗ trống cuối cùng hiển thị trên bản đồ không được nhỏ hơn 0
             long availableSlots = Math.max(0, physicalAvailableSlots - pendingReservations);
 
             List<SlotDTO> slotDTOs = slots.stream().map(s -> SlotDTO.builder()
-                .id(String.valueOf(s.getId())) // FE expects string
+                .id(String.valueOf(s.getId())) // FE expect string id để dễ render SVG/Konva
                 .name(s.getSlotName())
                 .status(s.getStatus())
                 .build()
@@ -99,10 +136,7 @@ public class ZoneService {
                 .pendingReservations((int) pendingReservations)
                 .vehicleTypeId(zone.getVehicleType().getId())
                 .vehicleType(zone.getVehicleType().getTypeName())
-                .vehicleMatrixWidth(zone.getVehicleType().getMatrixWidth())
-                .vehicleMatrixHeight(zone.getVehicleType().getMatrixHeight())
                 .functionType(zone.getFunctionType())
-                .status(zone.getStatus())
                 .layoutX(zone.getLayoutX())
                 .layoutY(zone.getLayoutY())
                 .rotation(zone.getRotation())
@@ -111,3 +145,4 @@ public class ZoneService {
         }).collect(Collectors.toList());
     }
 }
+

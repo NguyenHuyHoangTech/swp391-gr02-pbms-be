@@ -52,9 +52,9 @@ public class PublicController {
         try {
             SystemConfig config = systemConfigService.getConfigByKey("TIME_SIMULATED_OFFSET_SECONDS");
             long offset = Long.parseLong(config.getConfigValue());
-            return ResponseEntity.ok(ApiResponse.success(offset, "Time offset fetched successfully"));
+            return ResponseEntity.ok(ApiResponse.success(offset, "Time offset retrieved successfully"));
         } catch (Exception e) {
-            return ResponseEntity.ok(ApiResponse.success(0L, "No time offset configured, defaulting to 0"));
+            return ResponseEntity.ok(ApiResponse.success(0L, "Time offset config not found, defaulting to 0"));
         }
     }
 
@@ -66,22 +66,16 @@ public class PublicController {
 
     @GetMapping("/building-profile")
     public ResponseEntity<ApiResponse<BuildingProfile>> getBuildingProfile() {
-        return ResponseEntity.ok(ApiResponse.success(buildingProfileService.getProfile(), "Building profile fetched successfully"));
+        return ResponseEntity.ok(ApiResponse.success(buildingProfileService.getProfile(), "Building profile retrieved successfully"));
     }
 
-    /**
-     * @Function: getParkingStatus
-     * @Description: Tổng số chỗ trống theo từng loại xe, chỉ tính zone
-     * WALK_IN (khách vãng lai) - dùng cho trang chủ hiển thị "còn bao nhiêu
-     * chỗ" mà không lộ chi tiết từng zone/slot cho người chưa đăng nhập.
-     */
     @GetMapping("/parking-status")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getParkingStatus() {
         List<Map<String, Object>> statusList = new ArrayList<>();
-
+        
         List<VehicleTypeDTO> vehicleTypes = vehicleTypeService.getAllVehicleTypes(false);
         List<com.pbms.modules.infrastructure.dto.ZoneDTO> zones = zoneService.getMapZones();
-
+        
         for (VehicleTypeDTO type : vehicleTypes) {
             int available = 0;
             for (com.pbms.modules.infrastructure.dto.ZoneDTO zone : zones) {
@@ -91,13 +85,13 @@ public class PublicController {
                 }
             }
             Map<String, Object> map = new HashMap<>();
-            map.put("type", type.getCategory());
+            map.put("type", type.getCategory()); 
             map.put("label", type.getTypeName());
             map.put("available", available);
             statusList.add(map);
         }
 
-        return ResponseEntity.ok(ApiResponse.success(statusList, "Parking status fetched successfully"));
+        return ResponseEntity.ok(ApiResponse.success(statusList, "Parking status retrieved successfully"));
     }
 
     @GetMapping("/config/{key}")
@@ -127,3 +121,4 @@ public class PublicController {
         }
     }
 }
+
