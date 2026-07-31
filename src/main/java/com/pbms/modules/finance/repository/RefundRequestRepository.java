@@ -1,4 +1,3 @@
-// Author: Võ Trung Hiếu
 package com.pbms.modules.finance.repository;
 
 import com.pbms.modules.finance.domain.RefundRequest;

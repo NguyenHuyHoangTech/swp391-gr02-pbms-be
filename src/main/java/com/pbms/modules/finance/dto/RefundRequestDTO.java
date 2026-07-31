@@ -1,4 +1,3 @@
-// Author: Võ Trung Hiếu
 package com.pbms.modules.finance.dto;
 
 import lombok.Builder;
@@ -16,7 +15,7 @@ public class RefundRequestDTO {
     private String plateNumber;
     private String bookingTime;
     private String expectedInTime;
-
+    private String cancelTime;
     private BigDecimal paidAmount;
     private BigDecimal penaltyFee;
     private BigDecimal refundAmount;
@@ -26,8 +25,6 @@ public class RefundRequestDTO {
     private String accountName;
     private String rejectReason;
     private String referenceType;
-    private String referenceId;
-    private String cancelTime;
     private String proofUrl;
 
     public void setPlateNumber(String plateNumber) {

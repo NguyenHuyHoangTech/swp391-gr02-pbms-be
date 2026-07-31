@@ -1,4 +1,3 @@
-// Author: Võ Trung Hiếu
 package com.pbms.modules.finance.domain;
 
 import com.pbms.common.domain.BaseEntity;
@@ -7,7 +6,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.math.BigDecimal;
-
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "refund_requests")
@@ -22,17 +21,10 @@ public class RefundRequest extends BaseEntity {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    /**
-     * Types of references:
-     * - "RESERVATION": Refund due to reservation cancellation
-     * - "MONTHLY_PASS": Refund due to monthly pass cancellation
-     * - "PAYMENT_FAIL": Payment succeeded but service processing failed (e.g. price mismatch)
-     * - "ORPHANED_TX": Payment succeeded but no matching local transaction found
-     */
     @Column(name = "reference_type", nullable = false, length = 50)
-    private String referenceType;
+    private String referenceType; // 'MONTHLY_PASS' or 'RESERVATION'
 
-    @Column(name = "reference_id", nullable = false, length = 255)
+    @Column(name = "reference_id", nullable = false, length = 50)
     private String referenceId;
 
     @Column(name = "paid_amount", precision = 18, scale = 2, nullable = false)
@@ -56,6 +48,9 @@ public class RefundRequest extends BaseEntity {
     @Column(nullable = false, length = 50)
     @Builder.Default
     private String status = "PENDING"; // PENDING, REFUNDED, REJECTED
+
+    @Column(name = "cancel_time", nullable = false)
+    private LocalDateTime cancelTime;
 
     @Column(name = "reject_reason", columnDefinition = "NVARCHAR(MAX)")
     private String rejectReason;

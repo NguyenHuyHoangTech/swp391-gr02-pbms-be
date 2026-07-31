@@ -1,4 +1,3 @@
-// Author: Võ Trung Hiếu
 package com.pbms.modules.finance.controller;
 
 import com.pbms.common.dto.ApiResponse;
@@ -22,6 +21,12 @@ public class RefundController {
     private final RefundService refundService;
     private final FileStorageService fileStorageService;
 
+    /**
+     * Truy xuất toàn bộ danh sách các yêu cầu hoàn tiền (Refund Requests).
+     * Dành cho quản trị viên kiểm tra và xử lý các giao dịch thất bại cần hoàn tiền cho khách.
+     *
+     * @return Danh sách yêu cầu hoàn tiền dưới dạng DTO.
+     */
     @GetMapping
     public ResponseEntity<ApiResponse<List<RefundRequestDTO>>> getAllRefunds() {
         return ResponseEntity.ok(ApiResponse.success(
@@ -37,6 +42,14 @@ public class RefundController {
         return ResponseEntity.ok(ApiResponse.success(null, "Success"));
     }
 
+    /**
+     * Từ chối (Reject) một yêu cầu hoàn tiền với lý do cụ thể (Ví dụ: Đã trả tiền mặt).
+     * Trạng thái sẽ cập nhật thành REJECTED và lưu lại lý do từ chối.
+     *
+     * @param id Mã định danh của yêu cầu hoàn tiền.
+     * @param body Payload chứa lý do từ chối (rejectReason).
+     * @return Thông báo từ chối thành công.
+     */
     @PutMapping("/{id}/reject")
     @LogAudit(action = "UPDATE", resource = "Refund", description = "Reject refund request")
     public ResponseEntity<ApiResponse<Void>> rejectRefund(
@@ -46,18 +59,15 @@ public class RefundController {
         refundService.rejectRefund(id, reason);
         return ResponseEntity.ok(ApiResponse.success(null, "Success"));
     }
-    @PutMapping("/{id}/resubmit")
-    @LogAudit(action = "UPDATE", resource = "Refund", description = "Resubmit refund request")
-    public ResponseEntity<ApiResponse<Void>> resubmitRefund(
-            @PathVariable Long id,
-            @RequestBody Map<String, String> body) {
-        String bankName = body.get("bankName");
-        String accountNumber = body.get("accountNumber");
-        String accountName = body.get("accountName");
-        refundService.resubmitRefund(id, bankName, accountNumber, accountName);
-        return ResponseEntity.ok(ApiResponse.success(null, "Resubmitted successfully"));
-    }
 
+    /**
+     * Cập nhật chứng từ (ví dụ: ảnh chụp màn hình chuyển khoản) cho một yêu cầu hoàn tiền.
+     * Chứng từ được tải lên hệ thống lưu trữ (MinIO/S3) và lấy về URL lưu vào CSDL.
+     *
+     * @param id Mã định danh của yêu cầu hoàn tiền.
+     * @param file File chứng từ tải lên (MultipartFile).
+     * @return Đường dẫn URL của file chứng từ đã tải lên.
+     */
     @PostMapping("/{id}/proof")
     public ResponseEntity<ApiResponse<String>> uploadProof(
             @PathVariable Long id,
