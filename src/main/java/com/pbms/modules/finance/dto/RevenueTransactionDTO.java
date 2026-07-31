@@ -12,13 +12,15 @@ import java.math.BigDecimal;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class RevenueRecordDTO {
-    private String date;
+public class RevenueTransactionDTO {
+    private String checkoutTime;
+    private String plate;
     private String vehicleType;
     private String gateName;
-    private String revenueSource;
+    private BigDecimal baseFee;
+    private BigDecimal overtimeFee;
+    private BigDecimal penaltyFee;
+    private BigDecimal reservationFee;
+    private BigDecimal totalFee;
     private String paymentMethod;
-    private BigDecimal totalRevenue;
-    private Long totalTransactions;
 }
-

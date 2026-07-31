@@ -1,19 +1,4 @@
-/**
- * =========================================================================================
- * CHI TIẾT VÒNG ĐỜI VÀ KIẾN TRÚC ĐÓNG GÓI DỮ LIỆU (DATA TRANSFER OBJECT)
- * =========================================================================================
- * 
- * BƯỚC 1: BẢO VỆ DỮ LIỆU LÕI (ENCAPSULATION)
- * - Minh chứng: Sử dụng DTO thay vì Entity để giao tiếp với Client. Điều này giúp 
- *   giấu đi cấu trúc thật của CSDL, chỉ phơi bày những trường dữ liệu an toàn.
- * 
- * BƯỚC 2: TỰ ĐỘNG HÓA BOILERPLATE CODE VỚI LOMBOK
- * - Minh chứng: Ký hiệu @Data, @Builder, @NoArgsConstructor, @AllArgsConstructor 
- *   giúp tự động sinh ra Getter, Setter, Builder mà không cần viết code thủ công.
- * 
- * @author Phạm Anh Tuấn
- * @created 10/05/2026
- */
+// Author: Võ Trung Hiếu
 package com.pbms.modules.system.dto;
 
 import lombok.AllArgsConstructor;

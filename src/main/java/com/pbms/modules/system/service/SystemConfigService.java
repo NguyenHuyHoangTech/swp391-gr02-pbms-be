@@ -1,24 +1,4 @@
-/**
- * =========================================================================================
- * CHI TIẾT VÒNG ĐỜI VÀ KIẾN TRÚC XỬ LÝ NGHIỆP VỤ (KÈM MINH CHỨNG CODE)
- * =========================================================================================
- * 
- * BƯỚC 1: KHỞI TẠO DỊCH VỤ VÀ TIÊM PHỤ THUỘC (DEPENDENCY INJECTION)
- * - Minh chứng 1: Ký hiệu @Service báo cho Spring Boot biết class này chứa Logic lõi. 
- *   Spring sẽ khởi tạo nó thành Singleton Bean.
- * - Minh chứng 2: Dùng @RequiredArgsConstructor để tự động tiêm các Repository vào Service.
- * 
- * BƯỚC 2: BẢO ĐẢM TOÀN VẸN GIAO DỊCH (TRANSACTION MANAGEMENT)
- * - Minh chứng: Các hàm thay đổi dữ liệu được gắn @Transactional. Điều này đảm bảo 
- *   khi có lỗi xảy ra, toàn bộ thao tác DB sẽ được Rollback, không gây rác dữ liệu.
- * 
- * BƯỚC 3: THỰC THI LOGIC NGHIỆP VỤ
- * - Minh chứng: Gọi các hàm từ Repository (như indById, save) để tương tác 
- *   trực tiếp với CSDL, xử lý các ngoại lệ (Exception) và trả về DTO cho Controller.
- * 
- * @author Phạm Anh Tuấn
- * @created 10/05/2026
- */
+// Author: Võ Trung Hiếu
 package com.pbms.modules.system.service;
 
 import com.pbms.modules.system.domain.SystemConfig;
@@ -37,33 +17,11 @@ public class SystemConfigService {
         this.repository = repository;
     }
 
-    /**
-     * =========================================================================
-     * NGHIỆP VỤ: GETALLCONFIGS
-     * =========================================================================
-     * MỤC ĐÍCH: Xử lý logic hoặc tiếp nhận request tương ứng cho getAllConfigs.
-     * 
-     * MÃ GIẢ CHI TIẾT TỪNG BƯỚC (PSEUDO-CODE):
-     * 1. Tiếp nhận và parse dữ liệu (nếu có).
-     * 2. Gọi các hàm nghiệp vụ, tương tác với Database hoặc các Service khác.
-     * 3. Trả về kết quả thành công hoặc ném ra Exception nếu có lỗi xảy ra.
-     */
     public List<SystemConfig> getAllConfigs() {
         return repository.findAll();
     }
 
     @org.springframework.cache.annotation.Cacheable(value = "configs", key = "#key")
-    /**
-     * =========================================================================
-     * NGHIỆP VỤ: GETCONFIGBYKEY
-     * =========================================================================
-     * MỤC ĐÍCH: Xử lý logic hoặc tiếp nhận request tương ứng cho getConfigByKey.
-     * 
-     * MÃ GIẢ CHI TIẾT TỪNG BƯỚC (PSEUDO-CODE):
-     * 1. Tiếp nhận và parse dữ liệu (nếu có).
-     * 2. Gọi các hàm nghiệp vụ, tương tác với Database hoặc các Service khác.
-     * 3. Trả về kết quả thành công hoặc ném ra Exception nếu có lỗi xảy ra.
-     */
     public SystemConfig getConfigByKey(String key) {
         return repository.findByConfigKey(key)
                 .orElseThrow(() -> new IllegalArgumentException("Config not found with key: " + key));
@@ -71,17 +29,6 @@ public class SystemConfigService {
 
     @Transactional
     @org.springframework.cache.annotation.CacheEvict(value = "configs", key = "#key")
-    /**
-     * =========================================================================
-     * NGHIỆP VỤ: SAVEORUPDATECONFIGVALUE
-     * =========================================================================
-     * MỤC ĐÍCH: Xử lý logic hoặc tiếp nhận request tương ứng cho saveOrUpdateConfigValue.
-     * 
-     * MÃ GIẢ CHI TIẾT TỪNG BƯỚC (PSEUDO-CODE):
-     * 1. Tiếp nhận và parse dữ liệu (nếu có).
-     * 2. Gọi các hàm nghiệp vụ, tương tác với Database hoặc các Service khác.
-     * 3. Trả về kết quả thành công hoặc ném ra Exception nếu có lỗi xảy ra.
-     */
     public SystemConfig saveOrUpdateConfigValue(String key, String value) {
         SystemConfig config = repository.findByConfigKey(key).orElse(null);
         if (config == null) {
@@ -99,17 +46,6 @@ public class SystemConfigService {
 
     @Transactional
     @org.springframework.cache.annotation.CacheEvict(value = "configs", key = "#config.configKey")
-    /**
-     * =========================================================================
-     * NGHIỆP VỤ: CREATECONFIG
-     * =========================================================================
-     * MỤC ĐÍCH: Xử lý logic hoặc tiếp nhận request tương ứng cho createConfig.
-     * 
-     * MÃ GIẢ CHI TIẾT TỪNG BƯỚC (PSEUDO-CODE):
-     * 1. Tiếp nhận và parse dữ liệu (nếu có).
-     * 2. Gọi các hàm nghiệp vụ, tương tác với Database hoặc các Service khác.
-     * 3. Trả về kết quả thành công hoặc ném ra Exception nếu có lỗi xảy ra.
-     */
     public SystemConfig createConfig(SystemConfig config) {
         if (repository.findByConfigKey(config.getConfigKey()).isPresent()) {
             throw new IllegalArgumentException("Config key already exists: " + config.getConfigKey());
@@ -119,17 +55,6 @@ public class SystemConfigService {
 
     @Transactional
     @org.springframework.cache.annotation.CacheEvict(value = "configs", key = "#configDetails.configKey", allEntries = true)
-    /**
-     * =========================================================================
-     * NGHIỆP VỤ: UPDATECONFIG
-     * =========================================================================
-     * MỤC ĐÍCH: Xử lý logic hoặc tiếp nhận request tương ứng cho updateConfig.
-     * 
-     * MÃ GIẢ CHI TIẾT TỪNG BƯỚC (PSEUDO-CODE):
-     * 1. Tiếp nhận và parse dữ liệu (nếu có).
-     * 2. Gọi các hàm nghiệp vụ, tương tác với Database hoặc các Service khác.
-     * 3. Trả về kết quả thành công hoặc ném ra Exception nếu có lỗi xảy ra.
-     */
     public SystemConfig updateConfig(Long id, SystemConfig configDetails) {
         SystemConfig config = repository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Config not found with id: " + id));
@@ -141,17 +66,6 @@ public class SystemConfigService {
     }
 
     @Transactional
-    /**
-     * =========================================================================
-     * NGHIỆP VỤ: DELETECONFIG
-     * =========================================================================
-     * MỤC ĐÍCH: Xử lý logic hoặc tiếp nhận request tương ứng cho deleteConfig.
-     * 
-     * MÃ GIẢ CHI TIẾT TỪNG BƯỚC (PSEUDO-CODE):
-     * 1. Tiếp nhận và parse dữ liệu (nếu có).
-     * 2. Gọi các hàm nghiệp vụ, tương tác với Database hoặc các Service khác.
-     * 3. Trả về kết quả thành công hoặc ném ra Exception nếu có lỗi xảy ra.
-     */
     public void deleteConfig(Long id) {
         if (!repository.existsById(id)) {
             throw new IllegalArgumentException("Config not found with id: " + id);
@@ -159,17 +73,6 @@ public class SystemConfigService {
         repository.deleteById(id);
     }
 
-    /**
-     * =========================================================================
-     * NGHIỆP VỤ: TESTSMTPCONNECTION
-     * =========================================================================
-     * MỤC ĐÍCH: Xử lý logic hoặc tiếp nhận request tương ứng cho testSmtpConnection.
-     * 
-     * MÃ GIẢ CHI TIẾT TỪNG BƯỚC (PSEUDO-CODE):
-     * 1. Tiếp nhận và parse dữ liệu (nếu có).
-     * 2. Gọi các hàm nghiệp vụ, tương tác với Database hoặc các Service khác.
-     * 3. Trả về kết quả thành công hoặc ném ra Exception nếu có lỗi xảy ra.
-     */
     public void testSmtpConnection(String email, String appPassword) {
         org.springframework.mail.javamail.JavaMailSenderImpl mailSender = new org.springframework.mail.javamail.JavaMailSenderImpl();
         mailSender.setHost("smtp.gmail.com");
@@ -191,17 +94,6 @@ public class SystemConfigService {
             throw new IllegalArgumentException("SMTP Connection failed: " + e.getMessage());
         }
     }
-    /**
-     * =========================================================================
-     * NGHIỆP VỤ: TESTPAYPALCONNECTION
-     * =========================================================================
-     * MỤC ĐÍCH: Xử lý logic hoặc tiếp nhận request tương ứng cho testPaypalConnection.
-     * 
-     * MÃ GIẢ CHI TIẾT TỪNG BƯỚC (PSEUDO-CODE):
-     * 1. Tiếp nhận và parse dữ liệu (nếu có).
-     * 2. Gọi các hàm nghiệp vụ, tương tác với Database hoặc các Service khác.
-     * 3. Trả về kết quả thành công hoặc ném ra Exception nếu có lỗi xảy ra.
-     */
     public void testPaypalConnection(String clientId, String secret) {
         org.springframework.web.client.RestTemplate restTemplate = new org.springframework.web.client.RestTemplate();
         org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
@@ -220,17 +112,6 @@ public class SystemConfigService {
             throw new IllegalArgumentException("PayPal Connection failed: " + e.getMessage());
         }
     }
-    /**
-     * =========================================================================
-     * NGHIỆP VỤ: TESTPAYOSCONNECTION
-     * =========================================================================
-     * MỤC ĐÍCH: Xử lý logic hoặc tiếp nhận request tương ứng cho testPayosConnection.
-     * 
-     * MÃ GIẢ CHI TIẾT TỪNG BƯỚC (PSEUDO-CODE):
-     * 1. Tiếp nhận và parse dữ liệu (nếu có).
-     * 2. Gọi các hàm nghiệp vụ, tương tác với Database hoặc các Service khác.
-     * 3. Trả về kết quả thành công hoặc ném ra Exception nếu có lỗi xảy ra.
-     */
     public void testPayosConnection(String clientId, String apiKey) {
         org.springframework.web.client.RestTemplate restTemplate = new org.springframework.web.client.RestTemplate();
         org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
@@ -364,17 +245,6 @@ public class SystemConfigService {
         }
     }
 
-    /**
-     * =========================================================================
-     * NGHIỆP VỤ: TESTSINGLEGEMINIMODEL
-     * =========================================================================
-     * MỤC ĐÍCH: Xử lý logic hoặc tiếp nhận request tương ứng cho testSingleGeminiModel.
-     * 
-     * MÃ GIẢ CHI TIẾT TỪNG BƯỚC (PSEUDO-CODE):
-     * 1. Tiếp nhận và parse dữ liệu (nếu có).
-     * 2. Gọi các hàm nghiệp vụ, tương tác với Database hoặc các Service khác.
-     * 3. Trả về kết quả thành công hoặc ném ra Exception nếu có lỗi xảy ra.
-     */
     public String testSingleGeminiModel(String apiKey, String modelName) {
         org.springframework.web.client.RestTemplate restTemplate = new org.springframework.web.client.RestTemplate();
         try {

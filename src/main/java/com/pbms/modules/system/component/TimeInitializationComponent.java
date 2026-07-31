@@ -1,19 +1,4 @@
-/**
- * =========================================================================================
- * CHI TIẾT VÒNG ĐỜI VÀ KIẾN TRÚC THÀNH PHẦN HỆ THỐNG (SPRING COMPONENT)
- * =========================================================================================
- * 
- * BƯỚC 1: KHỞI TẠO COMPONENT (DEPENDENCY INJECTION)
- * - Minh chứng 1: Ký hiệu @Component báo cho Spring Boot biết class này là một 
- *   thành phần độc lập (Bean) chuyên xử lý các tác vụ nền, tiện ích hệ thống.
- * 
- * BƯỚC 2: VÒNG ĐỜI KHỞI CHẠY (LIFECYCLE)
- * - Minh chứng: Dùng @PostConstruct để kích hoạt hàm chạy ngay lập tức khi ứng dụng 
- *   vừa khởi động xong, hoặc lắng nghe các Event trong hệ thống.
- * 
- * @author Phạm Anh Tuấn
- * @created 10/05/2026
- */
+// Author: Võ Trung Hiếu
 package com.pbms.modules.system.component;
 
 import com.pbms.common.utils.TimeProvider;
@@ -38,17 +23,6 @@ public class TimeInitializationComponent {
     private final ApplicationEventPublisher eventPublisher;
 
     @PostConstruct
-    /**
-     * =========================================================================
-     * NGHIỆP VỤ: INITSIMULATEDTIME
-     * =========================================================================
-     * MỤC ĐÍCH: Xử lý logic hoặc tiếp nhận request tương ứng cho initSimulatedTime.
-     * 
-     * MÃ GIẢ CHI TIẾT TỪNG BƯỚC (PSEUDO-CODE):
-     * 1. Tiếp nhận và parse dữ liệu (nếu có).
-     * 2. Gọi các hàm nghiệp vụ, tương tác với Database hoặc các Service khác.
-     * 3. Trả về kết quả thành công hoặc ném ra Exception nếu có lỗi xảy ra.
-     */
     public void initSimulatedTime() {
         try {
             SystemConfig config = systemConfigService.getConfigByKey("TIME_SIMULATED_OFFSET_SECONDS");
