@@ -8,6 +8,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication
 @EnableScheduling
+@org.springframework.cache.annotation.EnableCaching
 @ComponentScan(basePackages = "com.pbms")
 public class PbmsApplication {
 
