@@ -35,14 +35,6 @@ public class RefundController {
         ));
     }
 
-    /**
-     * Chấp thuận (Approve) một yêu cầu hoàn tiền.
-     * Cập nhật trạng thái yêu cầu thành REFUNDED, ghi log Audit và tự động đồng bộ 
-     * trạng thái về module Vận hành (nếu là tiền cọc Reservation).
-     *
-     * @param id Mã định danh của yêu cầu hoàn tiền cần phê duyệt.
-     * @return Thông báo phê duyệt thành công.
-     */
     @PutMapping("/{id}/approve")
     @LogAudit(action = "UPDATE", resource = "Refund", description = "Approve refund request")
     public ResponseEntity<ApiResponse<Void>> approveRefund(@PathVariable Long id) {
