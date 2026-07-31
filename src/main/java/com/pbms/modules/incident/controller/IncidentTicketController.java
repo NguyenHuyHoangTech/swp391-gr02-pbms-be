@@ -58,7 +58,6 @@ import com.pbms.modules.incident.service.IncidentService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 
 import java.util.List;
@@ -128,51 +127,7 @@ public class IncidentTicketController {
         return ResponseEntity.ok(ApiResponse.success(incidentService.getAllIncidents(email), "Fetched successfully"));
     }
 
-    /**
-     * =========================================================================
-     * API 3: CHUYỂN SỰ CỐ SANG KHU VỰC QUÁ GIỜ (MOVE TO OVERSTAY)
-     * =========================================================================
-     * MỤC ĐÍCH: Cập nhật trạng thái sự cố đỗ xe quá thời gian quy định sang khu vực
-     * Overstay.
-     * 
-     * MÃ GIẢ CHI TIẾT TỪNG BƯỚC (PSEUDO-CODE):
-     * 1. Parse `uploadedDocUrl` từ Request Body (ảnh biên bản/chụp xe).
-     * 2. Gọi `incidentService.moveToOverstay(id, uploadedDocUrl)`.
-     * 3. Trả về HTTP 200 OK kèm DTO đã cập nhật.
-     */
-    @PutMapping("/{id}/move-to-overstay")
-    public ResponseEntity<ApiResponse<IncidentTicketDTO>> moveToOverstay(
-            @PathVariable Long id,
-            @RequestBody Map<String, Object> requestBody) {
-        try {
-            String uploadedDocUrl = (String) requestBody.get("uploadedDocUrl");
-            IncidentTicketDTO dto = incidentService.moveToOverstay(id, uploadedDocUrl);
-            return ResponseEntity.ok(ApiResponse.success(dto, "Moved to overstay zone successfully"));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(ApiResponse.error(400, "Error: " + e.getMessage()));
-        }
-    }
 
-    /**
-     * =========================================================================
-     * API 4: XÁC NHẬN ĐÃ ĐỌC THÔNG BÁO QUÁ GIỜ (ACKNOWLEDGE OVERSTAY)
-     * =========================================================================
-     * MỤC ĐÍCH: Nhân viên bấm xác nhận đã biết về sự cố quá giờ để tiến hành xử lý.
-     * 
-     * MÃ GIẢ CHI TIẾT TỪNG BƯỚC (PSEUDO-CODE):
-     * 1. Tiếp nhận PathVariable `id`.
-     * 2. Gọi `incidentService.acknowledgeOverstay(id)`.
-     * 3. Trả về HTTP 200 OK.
-     */
-    @PutMapping("/{id}/acknowledge")
-    public ResponseEntity<ApiResponse<IncidentTicketDTO>> acknowledgeOverstay(@PathVariable Long id) {
-        try {
-            IncidentTicketDTO dto = incidentService.acknowledgeOverstay(id);
-            return ResponseEntity.ok(ApiResponse.success(dto, "Incident acknowledged successfully"));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(ApiResponse.error(400, "Error: " + e.getMessage()));
-        }
-    }
 
     /**
      * =========================================================================
@@ -247,6 +202,7 @@ public class IncidentTicketController {
         }
     }
 
+
     /**
      * =========================================================================
      * API 8: XÁC NHẬN GIAI ĐOẠN 1 (PROCESS PHASE 1)
@@ -281,54 +237,7 @@ public class IncidentTicketController {
         }
     }
 
-    /**
-     * =========================================================================
-     * API 9: TỪ CHỐI BÁO CÁO SỰ CỐ (REJECT INCIDENT)
-     * =========================================================================
-     * MỤC ĐÍCH: Từ chối báo cáo không hợp lệ từ khách hàng (Ví dụ: Báo mất thẻ ảo).
-     * 
-     * MÃ GIẢ CHI TIẾT TỪNG BƯỚC (PSEUDO-CODE):
-     * 1. Nhận lý do từ RequestParam `reason`.
-     * 2. Gọi `incidentService.rejectIncident(id, reason)`.
-     * 3. Trả về HTTP 200 OK.
-     */
-    @PutMapping("/{id}/reject")
-    public ResponseEntity<ApiResponse<IncidentTicketDTO>> rejectIncident(
-            @PathVariable Long id,
-            @RequestParam String reason) {
-        try {
-            IncidentTicketDTO dto = incidentService.rejectIncident(id, reason);
-            return ResponseEntity.ok(ApiResponse.success(dto, "Success"));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(ApiResponse.error(400, "Error: " + e.getMessage()));
-        }
-    }
 
-    /**
-     * =========================================================================
-     * API 10: XỬ LÝ SỰ CỐ KHÔNG DÙNG THẺ (RESOLVE NON-CARD)
-     * =========================================================================
-     * MỤC ĐÍCH: Xử lý đóng các sự cố không dính dáng tới thẻ từ (VD: xe vô đỗ không
-     * đăng ký).
-     * 
-     * MÃ GIẢ CHI TIẾT TỪNG BƯỚC (PSEUDO-CODE):
-     * 1. Đọc ghi chú và ảnh minh chứng.
-     * 2. Gọi `incidentService.resolveNonCardIncident(id, resolutionNotes, docUrl)`.
-     * 3. Trả về HTTP 200 OK.
-     */
-    @PutMapping("/{id}/resolve-non-card")
-    public ResponseEntity<ApiResponse<IncidentTicketDTO>> resolveNonCard(
-            @PathVariable Long id,
-            @RequestBody Map<String, String> body) {
-        try {
-            String resolutionNotes = body.get("resolutionNotes");
-            String docUrl = body.get("resolutionImageUrl");
-            IncidentTicketDTO dto = incidentService.resolveNonCardIncident(id, resolutionNotes, docUrl);
-            return ResponseEntity.ok(ApiResponse.success(dto, "Resolved non-card incident successfully"));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(ApiResponse.error(400, "Error: " + e.getMessage()));
-        }
-    }
 
     /**
      * =========================================================================
@@ -371,98 +280,6 @@ public class IncidentTicketController {
                 .success(incidentService.checkPlateAndRfidActiveInfo(plate, rfid, vehicleTypeId), "Check the status"));
     }
 
-    /**
-     * =========================================================================
-     * API 13: BÁO MẤT THẺ KHẨN CẤP (REPORT LOST CARD)
-     * =========================================================================
-     * MỤC ĐÍCH: Khách hàng/Nhân viên tạo nhanh yêu cầu báo mất thẻ từ.
-     * 
-     * MÃ GIẢ CHI TIẾT TỪNG BƯỚC (PSEUDO-CODE):
-     * 1. Parse thông tin biển số, mức phí đền, mô tả, ảnh chụp giấy tờ (Gương
-     * mặt/CCCD).
-     * 2. Lấy email người gửi từ Authentication.
-     * 3. Gọi `incidentService.createLostCardIncident(...)`.
-     * 4. Trả về HTTP 200 OK kèm Ticket báo mất thẻ.
-     */
-    @PostMapping("/lost-card")
-    public ResponseEntity<ApiResponse<IncidentTicketDTO>> reportLostCard(
-            @RequestBody Map<String, Object> requestBody,
-            Authentication authentication) {
-        try {
-            String email = authentication != null ? authentication.getName() : null;
-            String plate = (String) requestBody.get("plate");
-            BigDecimal fee = requestBody.get("fee") != null
-                    ? new BigDecimal(requestBody.get("fee").toString())
-                    : null;
-            String description = (String) requestBody.get("description");
-            String uploadedDocUrl = (String) requestBody.get("uploadedDocUrl");
-            Long vehicleTypeId = requestBody.get("vehicleTypeId") != null
-                    ? Long.parseLong(requestBody.get("vehicleTypeId").toString())
-                    : null;
-            IncidentTicketDTO dto = incidentService.createLostCardIncident(plate, fee, description, uploadedDocUrl,
-                    email, vehicleTypeId);
-            return ResponseEntity.ok(ApiResponse.success(dto, "Reported lost card successfully"));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(ApiResponse.error(400, "Error: " + e.getMessage()));
-        }
-    }
 
-    /**
-     * =========================================================================
-     * API 14: DÀNH CHO QUẢN LÝ - ĐIỀU CHỈNH GIẢM GIÁ KHIẾU NẠI (ADJUST FEE DISPUTE)
-     * =========================================================================
-     * MỤC ĐÍCH: Chỉ có Quản lý (ROLE_MANAGER) mới có quyền duyệt mức giảm giá khiếu
-     * nại phí.
-     * 
-     * MÃ GIẢ CHI TIẾT TỪNG BƯỚC (PSEUDO-CODE):
-     * 1. Bảo mật: Yêu cầu `@PreAuthorize("hasRole('MANAGER')")`.
-     * 2. Parse `discountAmount`, ghi chú và ảnh quyết định giảm giá.
-     * 3. Gọi `incidentService.resolveFeeDispute(...)`.
-     * 4. Trả về HTTP 200 OK.
-     */
-    @PutMapping("/{id}/adjust-fee-dispute")
-    @PreAuthorize("hasRole('MANAGER')")
-    public ResponseEntity<ApiResponse<Boolean>> adjustFeeDispute(
-            @PathVariable Long id,
-            @RequestBody Map<String, Object> requestBody) {
-        try {
-            BigDecimal discountAmount = new BigDecimal(requestBody.get("discountAmount").toString());
-            String resolutionNotes = (String) requestBody.get("resolutionNotes");
-            String resolutionImageUrl = (String) requestBody.get("resolutionImageUrl");
 
-            incidentService.resolveFeeDispute(id, discountAmount, resolutionNotes, resolutionImageUrl);
-            return ResponseEntity.ok(ApiResponse.success(true, "Fee dispute adjusted successfully"));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(ApiResponse.error(400, "Error: " + e.getMessage()));
-        }
-    }
-
-    /**
-     * =========================================================================
-     * API 15: ĐIỀU CHỈNH PHÍ TRỰC TIẾP (ADJUST FEE)
-     * =========================================================================
-     * MỤC ĐÍCH: Tạo sự cố điều chỉnh phí trực tiếp khi số tiền trên hệ thống bị sai
-     * lệch.
-     * 
-     * MÃ GIẢ CHI TIẾT TỪNG BƯỚC (PSEUDO-CODE):
-     * 1. Parse thông tin biển số, số tiền phí thực tế (`liveFee`), lý do điều
-     * chỉnh.
-     * 2. Gọi `incidentService.adjustFeeIncident(...)`.
-     * 3. Trả về HTTP 200 OK.
-     */
-    @PostMapping("/adjust-fee")
-    public ResponseEntity<ApiResponse<IncidentTicketDTO>> adjustFee(
-            @RequestBody Map<String, Object> requestBody) {
-        try {
-            String plate = (String) requestBody.get("plate");
-            BigDecimal liveFee = new BigDecimal(requestBody.get("liveFee").toString());
-            String reason = (String) requestBody.get("reason");
-            Object vtIdObj = requestBody.get("vehicleTypeId");
-            Long vehicleTypeId = vtIdObj != null ? Long.valueOf(vtIdObj.toString()) : null;
-            IncidentTicketDTO dto = incidentService.adjustFeeIncident(plate, liveFee, reason, vehicleTypeId);
-            return ResponseEntity.ok(ApiResponse.success(dto, "Fee adjusted successfully"));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(ApiResponse.error(400, "Error: " + e.getMessage()));
-        }
-    }
 }
