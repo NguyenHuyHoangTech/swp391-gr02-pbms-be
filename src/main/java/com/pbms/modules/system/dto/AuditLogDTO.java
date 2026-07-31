@@ -11,21 +11,38 @@
  * - Minh chứng: Ký hiệu @Data, @Builder, @NoArgsConstructor, @AllArgsConstructor 
  *   giúp tự động sinh ra Getter, Setter, Builder mà không cần viết code thủ công.
  * 
- * BƯỚC 3: KIỂM TRA TÍNH HỢP LỆ (VALIDATION)
- * - Minh chứng: Có thể sử dụng các ký hiệu như @NotBlank, @NotNull, @Email 
- *   để bắt lỗi dữ liệu ngay từ vòng gửi xe (Controller) trước khi xuống Service.
- * 
  * @author Phạm Anh Tuấn
- * @created 03/05/2026
+ * @created 10/05/2026
  */
-package com.pbms.modules.identity.dto;
+package com.pbms.modules.system.dto;
 
-import jakarta.validation.constraints.NotBlank;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.time.LocalDateTime;
 
 @Data
-public class GoogleAuthRequest {
-    @NotBlank(message = "Google ID Token is required")
-    private String googleIdToken;
-}
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class AuditLogDTO {
+    private Long id;
+    private String action;
+    private String resource;
+    private String oldValue;
+    private String newValue;
+    private String ipAddress;
+    private String description;
+    private LocalDateTime createdAt;
+    private ActorDTO actor;
 
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class ActorDTO {
+        private String email;
+    }
+}
